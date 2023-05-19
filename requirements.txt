@@ -1,0 +1,16 @@
+pyyaml
+dash
+dash_bootstrap_components
+plotly
+pandas
+openpyxl
+xlsxwriter
+pymongo
+devtools
+pydantic
+phonenumbers
+pydantic[email]
+email-validator
+certifi
+gunicorn
+
