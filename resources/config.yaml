@@ -1,0 +1,69 @@
+config:
+  bin_path     : .
+  assets       : ./assets
+  path         : ../..//data/
+  mrs          : _in/mrs-gantt.xlsx
+  f7           : _in/previous.xlsx
+  f8           : _in/current.xlsx
+  avi          : _in/avi.xlsx
+  avi-out      : _out/m4n_i_status.xlsx
+  in-out       : _out/in-out.xlsx
+  svgs         : ./assets/images/svgs
+
+Sapir_Phase: {
+  18316: Interface Phase-I,
+  18321: Interface Phase-II,
+  2492 : PDR,
+  2495 : CDR,
+  2493 : Infra-I,
+  2498 : Infra-II,
+  2502 : POC,
+  2512 : TRR,
+  2513 : FAT,
+  2514 : Training,
+  9859 : Pre-SAT-I,
+  9858 : Pre-SAT-II,
+  9860 : Pre-SAT-II,
+  2520 : S-SAT,
+  2156 : N-SAT,
+  2175 : C-SAT,
+  2515 : Production,
+}
+
+xlsx_formats:
+  align_left: {
+    'text_wrap': True,
+    'valign': 'vcenter',
+    'align': 'left',
+    'indent': 1
+  }
+  align_date: {
+    'num_format': 'dd/mm/yyyy',
+    'valign': 'vcenter',
+    'align': 'center'
+  }
+  align_center: {
+    'text_wrap': True,
+    'valign': 'vcenter',
+    'align': 'center'
+  }
+  align_rtl: {
+    'text_wrap': True,
+    'align': 'right',
+    'valign': 'vcenter',
+    'reading_order': 2,
+    'indent': 1
+  }
+  align_percent: {
+    'align': 'center',
+    'valign': 'vcenter',
+    'num_format': 10
+  }
+  align_header: {
+    'font_name': 'Arial',
+    'font_size': 12,
+    'bold': True,
+    'align': 'center',
+    'bg_color': '#C6EFCE',
+    'font_color': '#006100'
+  }
