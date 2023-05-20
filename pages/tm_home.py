@@ -888,22 +888,21 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
         for plan in test_plans:
             for t_step in plan.get('test_steps'):
                 record = {
-                    'step'        : f'{t_step.get("step"):0>2}',
-                    'mtp_id'      : t_step.get('test_id'      ),
-                    'test_number' : t_step.get('test_number'  ),
-                    'exp_sap'     : t_step.get('exp_sap'      ),
-                    'exp_wms'     : t_step.get('exp_wms'      ),
-                    'status'      : 'status',
+                    'step'     : f'{t_step.get("step"):0>2}',
+                    'mtp_id'   : t_step.get('mtp_id'   ),
+                    'test_name': t_step.get('test_name'),
+                    'exp_sap'  : t_step.get('exp_sap'  ),
+                    'exp_wms'  : t_step.get('exp_wms'  ),
+                    'status'   : 'status',
                 }
                 records.append(record)
             story = {
-                'mtp_id': plan.get('test_id'),
-                'number': plan.get('number'),
-                'story' : plan.get('story'),
-                # TODO: change prepreq model to string rather than array
-                'prereq': 'prereq',
-                'tester': plan.get('tester'),
-                'result': ban
+                'mtp_id'   : plan.get('mtp_id'   ),
+                'test_name': plan.get('test_name'),
+                'story'    : plan.get('story'    ),
+                'prereq'   : plan.get('prereq'   ),
+                'tester'   : plan.get('tester'   ),
+                'result'   : ban
             }
             stories.append(story)
         dff = pd.DataFrame(stories)
@@ -936,14 +935,14 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
         )
 
         cycle      = db_document.get('reference'  ).get('secret_1'   )
-        mtp_id     = db_document.get('test_object').get('test_id'    )
-        prod_key   = db_document.get('test_object').get('product_key')
-        complexity = db_document.get('test_object').get('complexity' )
-        bp_rns     = db_document.get('test_object').get('BP_RN'      )
-        chapters   = db_document.get('test_object').get('CDR'        )
-        purpose    = db_document.get('test_object').get('purpose'    )
-        systems    = db_document.get('test_object').get('systems'    )
-        test_plans = db_document.get('test_object').get('test_plan'  )
+        mtp_id     = db_document.get('mtp_object').get('mtp_id'     )
+        prod_key   = db_document.get('mtp_object').get('product_key')
+        complexity = db_document.get('mtp_object').get('complexity' )
+        bp_rns     = db_document.get('mtp_object').get('BP_RN'      )
+        chapters   = db_document.get('mtp_object').get('CDR'        )
+        purpose    = db_document.get('mtp_object').get('purpose'    )
+        systems    = db_document.get('mtp_object').get('systems'    )
+        test_plans = db_document.get('mtp_object').get('test_plan'  )
 
         first_row = dbc.Row(
             [
