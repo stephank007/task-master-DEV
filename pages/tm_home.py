@@ -808,7 +808,7 @@ def main_task_handler(previous_dropdowns, filters_query, clicked_chart, b_next, 
     State ('task-table'         , 'data'         ),
 )
 def document_detail_pane(switch_pane, selected_row, rows):  # render the update pane only
-
+    ###
     def create_md_note(header: str, note: str, oid: Any) -> dbc.Col:
         if note is None:
             return dbc.Col(html.Div([html.H6(header, style={'margin-bottom': '0px'}),]))
@@ -883,8 +883,7 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
     def render_testplans_table(test_plans: list) -> dt.DataTable:
         records = []
         stories = []
-        ban = '<i class="fas fa-ban text-danger mt-3"></i>'
-        # ban = '<i class="fa fa-cloud" style="color: grey;"></i>'
+        ban = '<i class="fas fa-ban text-danger d-flex flex-row justify-content-center"></i>'
         for plan in test_plans:
             for t_step in plan.get('test_steps'):
                 record = {
