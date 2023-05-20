@@ -883,6 +883,8 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
     def render_testplans_table(test_plans: list) -> dt.DataTable:
         records = []
         stories = []
+        ban = '<i class="fas fa-ban text-danger mt-3"></i>'
+        # ban = '<i class="fa fa-cloud" style="color: grey;"></i>'
         for plan in test_plans:
             for t_step in plan.get('test_steps'):
                 record = {
@@ -901,24 +903,30 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
                 # TODO: change prepreq model to string rather than array
                 'prereq': 'prereq',
                 'tester': plan.get('tester'),
+                'result': ban
             }
             stories.append(story)
         dff = pd.DataFrame(stories)
+        t_columns = [{'name': i, 'id': i} for i in dff.columns]
+        t_columns[5].update({'presentation': 'markdown'})
 
         table =  dt.DataTable(
-            columns=[{'name': i, 'id': i} for i in dff.columns],
+            # columns=[{'name': i, 'id': i} for i in dff.columns],
+            columns=t_columns,
             data=dff.to_dict('records'),
             hidden_columns=['oid'],
             style_header=header_style,
             style_cell_conditional=note_column_formatting,
             style_cell=note_cell_style,
             style_table={'margin-top': '0px'},
+            row_selectable='single',
+            markdown_options={"html": True},
             css=[{'selector': '.show-hide', 'rule': 'display: none'}]
         )
         return html.Div(
             table,
             dir='ltr',
-            lang='he'
+            lang='he',
         )
 
     def test_document_handler(db_document: dict, symbol: str) -> list:
@@ -949,7 +957,7 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
             [
                 dbc.Col(
                     html.Div(render_testplans_table(test_plans=test_plans)),
-                    class_name='col-3 mt-0',
+                    class_name='col-5 mt-0',
                     style=row_style
                 ),
                 dbc.Col(
@@ -964,12 +972,12 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
                 ),
                 dbc.Col(
                     html.Div(render_table(chapters)),
-                    class_name='col-2 mt-0',
+                    class_name='col-1 mt-0',
                     style=row_style
                 ),
                 dbc.Col(
                     html.Div(render_table(systems)),
-                    class_name='col-2 mt-0',
+                    class_name='col-1 mt-0',
                     style=row_style
                 ),
             ],

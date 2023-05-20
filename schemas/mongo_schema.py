@@ -88,7 +88,6 @@ class MongoManager:
     def connect(self):
         logger.info ('MongoDB : Start Connection...')
         self._client = MongoClient ('mongodb://127.0.0.1:27017/', serverSelectionTimeoutMS=1000)
-        # self._client = MongoClient('mongodb+srv://stephankatz:cHD5DqGsm31yMtac@eithank.xrmu64d.mongodb.net/', tlsCAFile=certifi.where())
         moshe = self._client["Task"].list_collections()
         moshe = [c for c in moshe]
         print(f'\tnumber of collections: {len(moshe)}')
