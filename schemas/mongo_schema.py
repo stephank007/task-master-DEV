@@ -339,6 +339,20 @@ class MongoManager:
             else:
                 search_query = None
 
+        ##########
+        ##########
+        ##########
+        ##########
+        ##########
+        ##########
+        ##########
+        search_query = {'$text': {'$search': 'T_01'}}
+        ##########
+        ##########
+        ##########
+        ##########
+        ##########
+
         updated_query = {}
         for key, value in grand_filter.items():
             if value:

@@ -25,7 +25,7 @@ dash.register_page(
 )
 
 issue_status = [Status.P_01, Status.P_02, Status.P_03, Status.P_04]
-test_status  = [Status.P_10, Status.P_11, Status.P_12]
+test_status  = [Status.P_10, Status.P_11, Status.P_12, Status.P_02]
 m4n_docx     = [Status.P_01, Status.P_15, Status.P_16]
 task_types   = {
     'issue': {
@@ -80,9 +80,9 @@ div_show   = {
 }
 note_cell_style = {
     'overflow-y': 'scroll',
-    'height': 'auto',
+    'height'    : 'auto'  ,
     'whiteSpace': 'normal',
-    'lineHeight': '15px'
+    'lineHeight': '15px'  ,
 }
 note_column_formatting = [
     {
@@ -131,11 +131,80 @@ update_pane_callbacks  = [
     'update-due-date',
     'update-owner-note'
 ]
+testplan_dropdown = {
+    'status': {
+        'options': [
+            {'label': i, 'value': i}
+            for i in test_status
+        ]
+    }
+}
 
 priority_values = [{"label": _, "value": _} for _ in Priority.list()      ]
 domain_values   = [{"label": _, "value": _} for _ in SAPDomainEnum.list() ]
 process_values  = [{"label": _, "value": _} for _ in SAPProcessEnum.list()]
 status_values   = [{"label": _, "value": _} for _ in Status.list()        ]
+
+testplan_formatting = [
+    {
+        'if': {'column_id': c},
+        'textAlign': 'center',
+        'backgroundColor': 'rgb(240, 240, 240)',
+        'width': '10%',
+    } for c in ['test_name', 'tester']
+]
+testplan_formatting.append({
+    'if': {'column_id': 'story'},
+    'width': '30%',
+    'backgroundColor': 'rgb(240, 240, 240)',
+    'textAlign': 'right',
+})
+testplan_formatting.append({
+    'if': {'column_id': 'prereq'},
+    'width': '30%',
+    'backgroundColor': 'rgb(240, 240, 240)',
+    'textAlign': 'right',
+})
+testplan_formatting.append({
+    'if': {'column_id': 'status'},
+    'width': '15%',
+    # 'backgroundColor': 'rgb(240, 240, 240)',
+    'backgroundColor': 'whitesmoke',
+    'textAlign': 'center',
+})
+testplan_formatting.append({
+    'if': {'column_id': 'symbol'},
+    'width': '5%',
+    'backgroundColor': 'rgb(240, 240, 240)',
+    'textAlign': 'center',
+})
+
+test_steps_formatting = [
+    {
+        'if': {'column_id': c},
+        'backgroundColor': 'rgb(240, 240, 240)',
+        'width': '22%',
+        'textAlign': 'right',
+    } for c in ['subject', 'exp_sap', 'exp_wms']
+]
+test_steps_formatting.append({
+        'if': {'column_id': 'status'},
+        'textAlign': 'center',
+        'backgroundColor': 'rgb(240, 240, 240)',
+        'width': '15%',
+    })
+test_steps_formatting.append({
+        'if': {'column_id': 'symbol'},
+        'textAlign': 'center',
+        'backgroundColor': 'rgb(240, 240, 240)',
+        'width': '10%',
+    })
+test_steps_formatting.append({
+        'if': {'column_id': 'step'},
+        'textAlign': 'center',
+        'backgroundColor': 'rgb(240, 240, 240)',
+        'width': '5%',
+    })
 
 column_formatting = [
     {
@@ -527,15 +596,50 @@ def fa_rendering(text: str, symbol: str) -> list:
         dbc.Label(text, class_name='s-5 text-white mt-3'),
     ]
 
+def diff_dashtable(data, data_previous, row_id_name=None):
+    dff, df_previous = pd.DataFrame(data=data), pd.DataFrame(data_previous)
+
+    if row_id_name is not None:
+        # If using something other than the index for row id's, set it here
+        for _df in [dff, df_previous]:
+            # Why do this?  Guess just to be sure?
+            assert row_id_name in _df.columns
+            _df = _df.set_index(row_id_name)
+    else:
+        row_id_name = 'index'
+
+    df_mask = ~((dff == df_previous) | ((dff != dff) & (df_previous != df_previous)))
+    df_mask = df_mask.loc[df_mask.any(axis=1)]
+
+    changes = []
+    # This feels like a place I could speed this up if needed
+    for idx, row in df_mask.iterrows():
+        row_id = row.name
+
+        # Act only on columns that had a change
+        row = row[row.eq(True)]
+        for change in row.items():
+            changes.append(
+                {
+                    row_id_name     : row_id,
+                    'column_name'   : change[0],
+                    'current_value' : dff.at[row_id, change[0]],
+                    'previous_value': df_previous.at[row_id, change[0]],
+                }
+            )
+    return changes
+
 ######################################################################################################################
 def layout():
     return dbc.Container([
         html.Div(
             [
                 dcc.Location(id="direction-home", refresh=True),
-                dcc.Store(id='filters-query'),
-                dcc.Store(id='clicked-chart'),
+                dcc.Store(id='filters-query'     ),
+                dcc.Store(id='clicked-chart'     ),
                 dcc.Store(id='previous-dropdowns'),
+                dcc.Store(id='moshe-id'          ),
+                dcc.Store(id='mtp-test-plans'    ),
                 html.Br(),
                 top_row_form,
                 html.Br(),
@@ -794,6 +898,64 @@ def main_task_handler(previous_dropdowns, filters_query, clicked_chart, b_next, 
         records            , \
         display_charts, message, feedback, b_next, b_prev, filter_dict, dropdown_options
 
+################################### MTP Callbacks ####################################################################
+@callback(
+    Output('test-plans', 'style_data_conditional'       ),
+    Input ('test-plans', 'derived_virtual_selected_rows')
+)
+def update_styles(selected_row):
+    if selected_row is None:
+        return dash.no_update
+    else:
+        return [
+            {
+                'if': {
+                    'filter_query': '{{id}} = {}'.format(i)
+                },
+                'backgroundColor': 'midnightblue',
+                'color'          : 'whitesmoke',
+            }
+            for i in selected_row
+        ]
+
+@callback(
+    Output('steps-table', 'children'),
+
+    Input ('test-plans'    , 'selected_rows'),
+    Input ('test-plans'    , 'data'         ),
+    State ('mtp-test-plans', 'data'         ),
+)
+def test_steps(selected_row, rows, selected_test_plans):
+    if selected_row is None:
+        return dash.no_update
+    else:
+        row = rows[selected_row[0]]
+        test_name  = row.get('test_name')
+        test_plans = pd.DataFrame(selected_test_plans)
+        t_steps    = pd.DataFrame(test_plans[test_plans['test_name'] == test_name]['test_steps'].values[0])
+        t_steps = t_steps[['step', 'subject', 'exp_sap', 'exp_wms', 'status', 'symbol']]
+        t_columns = [{'name': i, 'id': i, 'deletable': False} for i in t_steps.columns]
+        t_columns[4].update({'presentation': 'dropdown', 'editable': True})
+        t_columns[5].update({'presentation': 'markdown', 'editable': True})
+        return html.Div(
+            dt.DataTable(
+                data = t_steps.to_dict('records'),
+                columns=t_columns[::-1],
+                style_header=header_style,
+                dropdown=testplan_dropdown,
+                markdown_options={"html": True},
+                style_cell={
+                    'whiteSpace': 'normal',
+                    'height'    : 'auto'
+                },
+                css=table_css,
+                style_cell_conditional=test_steps_formatting,
+            ),
+            dir='ltr',
+            lang='he'
+        )
+
+######################################################################################################################
 @callback(
     Output('document-detail-row', 'children'     ),
     Output('record-id'          , 'data'         ),
@@ -802,6 +964,7 @@ def main_task_handler(previous_dropdowns, filters_query, clicked_chart, b_next, 
     Output('task-table'         , 'selected_rows'),
     Output('update-form'        , 'children'     ),
     Output('test-detail-pane'   , 'children'     ),
+    Output('mtp-test-plans'     , 'data'         ),
 
     Input ('switch-pane'        , 'n_clicks'     ),
     Input ('task-table'         , 'selected_rows'),
@@ -881,48 +1044,41 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
         )
 
     def render_testplans_table(test_plans: list) -> dt.DataTable:
-        records = []
         stories = []
-        ban = '<i class="fas fa-ban text-danger d-flex flex-row justify-content-center"></i>'
+        not_started = '<i class="fas fa-ban text-muted d-flex flex-row justify-content-center"></i>'
         for plan in test_plans:
-            for t_step in plan.get('test_steps'):
-                record = {
-                    'step'     : f'{t_step.get("step"):0>2}',
-                    'mtp_id'   : t_step.get('mtp_id'   ),
-                    'test_name': t_step.get('test_name'),
-                    'exp_sap'  : t_step.get('exp_sap'  ),
-                    'exp_wms'  : t_step.get('exp_wms'  ),
-                    'status'   : 'status',
-                }
-                records.append(record)
             story = {
-                'mtp_id'   : plan.get('mtp_id'   ),
+                # 'mtp_id'   : plan.get('mtp_id'   ),
                 'test_name': plan.get('test_name'),
                 'story'    : plan.get('story'    ),
                 'prereq'   : plan.get('prereq'   ),
                 'tester'   : plan.get('tester'   ),
-                'result'   : ban
+                'status'   : plan.get('status'   ),
+                'symbol'   : plan.get('symbol'   )
             }
             stories.append(story)
-        dff = pd.DataFrame(stories)
-        t_columns = [{'name': i, 'id': i} for i in dff.columns]
-        t_columns[5].update({'presentation': 'markdown'})
 
-        table =  dt.DataTable(
-            # columns=[{'name': i, 'id': i} for i in dff.columns],
-            columns=t_columns,
-            data=dff.to_dict('records'),
-            hidden_columns=['oid'],
-            style_header=header_style,
-            style_cell_conditional=note_column_formatting,
-            style_cell=note_cell_style,
-            style_table={'margin-top': '0px'},
-            row_selectable='single',
-            markdown_options={"html": True},
-            css=[{'selector': '.show-hide', 'rule': 'display: none'}]
-        )
+        dff       = pd.DataFrame(stories)
+        t_columns = [{'name': i, 'id': i} for i in dff.columns]
+        # t_columns[4].update({'presentation': 'dropdown', 'editable': True})
+        t_columns[5].update({'presentation': 'markdown', 'editable': True})
+
         return html.Div(
-            table,
+            dt.DataTable(
+                id='test-plans',
+                columns=t_columns[::-1],
+                data=dff.to_dict('records'),
+                row_selectable='single',
+                markdown_options={"html": True},
+                # dropdown=testplan_dropdown,
+                style_header=header_style,
+                style_cell={
+                    'whiteSpace': 'normal',
+                    'height'    : 'auto'
+                },
+                css=table_css,
+                style_cell_conditional=testplan_formatting,
+            ),
             dir='ltr',
             lang='he',
         )
@@ -933,7 +1089,7 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
             symbol=symbol
         )
 
-        cycle      = db_document.get('reference'  ).get('secret_1'   )
+        cycle      = db_document.get('reference'  ).get('secret_1'  )
         mtp_id     = db_document.get('mtp_object').get('mtp_id'     )
         prod_key   = db_document.get('mtp_object').get('product_key')
         complexity = db_document.get('mtp_object').get('complexity' )
@@ -946,48 +1102,63 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
         first_row = dbc.Row(
             [
                 dbc.Col(
-                    dbc.Alert(f'Test Cycle: {cycle} MTP ID: {mtp_id}', color='secondary'),
-                    class_name='col-12'
+                    dbc.Alert(f'Test Cycle: {cycle}', color='secondary', class_name='fs-3 text-center'),
+                    class_name='col-6 m-0 g-0'
+                ),
+                dbc.Col(
+                    dbc.Alert(f'MTP ID: {mtp_id}'   , color='secondary', class_name='fs-3 text-center'),
+                    class_name='col-6 m-0 g-0'
                 )
+
             ]
         )
         second_row = dbc.Row(
             [
                 dbc.Col(
                     html.Div(render_testplans_table(test_plans=test_plans)),
-                    class_name='col-5 mt-0',
+                    class_name='col-8 mt-0',
                     style=row_style
                 ),
                 dbc.Col(
                     html.Div(render_table(purpose)),
-                    class_name='col-3 mt-0',
-                    style=row_style
-                ),
-                dbc.Col(
-                    html.Div(render_table(bp_rns)),
-                    class_name='col-2 mt-0',
-                    style=row_style
-                ),
-                dbc.Col(
-                    html.Div(render_table(chapters)),
-                    class_name='col-1 mt-0',
-                    style=row_style
-                ),
-                dbc.Col(
-                    html.Div(render_table(systems)),
-                    class_name='col-1 mt-0',
+                    class_name='col-4 mt-0',
                     style=row_style
                 ),
             ],
             justify='center'
         )
-        moshe = html.Div(
+        third_row = dbc.Row(
             [
-                first_row,
-                second_row
+                dbc.Col(
+                    id='steps-table',
+                    class_name='col-8'
+                ),
+                dbc.Col(
+                    html.Div(render_table(bp_rns)),
+                    class_name='col-2',
+                    style=row_style
+                ),
+                dbc.Col(
+                    html.Div(render_table(chapters)),
+                    class_name='col-1',
+                    style=row_style
+                ),
+                dbc.Col(
+                    html.Div(render_table(systems)),
+                    class_name='col-1',
+                    style=row_style
+                ),
+            ],
+            class_name='mt-1'
+        )
+        m_layout = html.Div(
+            [
+                first_row ,
+                second_row,
+                third_row ,
             ]
         )
-        return top_row, info_row, t_name, moshe
+        return top_row, info_row, t_name, m_layout, test_plans
 
     def issue_document_handler(db_document: dict, symbol: str) -> list:
         try:
@@ -1044,7 +1215,8 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
     document_detail_row = []
     record_info         = html.Div()
     owner_name          = None
-    moshe_x             = html.Div()
+    t_plans             = None
+    mtp_layout          = None
     if ctx.triggered_id == 'task-table' and ctx.inputs.get('task-table.selected_rows'):
         selected_row = rows[selected_row[0]]
         selected_id  = selected_row['_id']
@@ -1064,7 +1236,7 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
                 )
             case 'test':
                 doctype_symbol = 'fas fa-flask fa-lg text-info'
-                document_detail_row, record_info, owner_name, moshe_x = test_document_handler(
+                document_detail_row, record_info, owner_name, mtp_layout, t_plans = test_document_handler(
                     db_document=db_record,
                     symbol=doctype_symbol
                 )
@@ -1080,10 +1252,10 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
                     db_document=db_record,
                     symbol=doctype_symbol
                 )
-
         update_form_by_record_type = update_form(record_type=doctype)
-        return document_detail_row, selected_id, owner_name, record_info, input_row, update_form_by_record_type, moshe_x
-    return None, '', '', 'no info', [], update_form_empty, moshe_x
+
+        return document_detail_row, selected_id, owner_name, record_info, input_row, update_form_by_record_type, mtp_layout, t_plans
+    return None, '', '', 'no info', [], update_form_empty, update_form_empty, t_plans
 
 @callback(
     Output('owner-notes'     , 'data'         ),
@@ -1215,3 +1387,19 @@ def charts_manager(pie_data, bar_data, pdu_data):
 #     'triggered': ctx.triggered,
 #     'inputs'   : ctx.inputs
 # }, indent=2)
+"""
+    def render_steps(step_list: list) -> dt.DataTable:
+        records = []
+        for t_step in step_list:
+            record = {
+                'step'     : f'{t_step.get("step"):0>2}',
+                'mtp_id'   : t_step.get('mtp_id'   ),
+                'test_name': t_step.get('test_name'),
+                'exp_sap'  : t_step.get('exp_sap'  ),
+                'exp_wms'  : t_step.get('exp_wms'  ),
+                'status'   : 'status',
+            }
+            records.append(record)
+        return pd.DataFrame(records)
+
+"""

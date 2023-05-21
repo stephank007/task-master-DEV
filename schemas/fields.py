@@ -51,8 +51,8 @@ class Status(str, ExtendedEnum):
     P_04 = 'עתידי'
     #
     P_10 = 'טרם החל'
-    P_11 = 'בבדיקה'
-    P_12 = 'בוצע בהצלחה'
+    P_11 = 'בריצה'
+    P_12 = 'תקול'
     #
     P_15 = 'אין הערות'
     P_16 = 'פתור'  # documentation notes are resolved
