@@ -638,7 +638,7 @@ def layout():
                 dcc.Store(id='filters-query'     ),
                 dcc.Store(id='clicked-chart'     ),
                 dcc.Store(id='previous-dropdowns'),
-                dcc.Store(id='moshe-id'          ),
+                dcc.Store(id='diff-store'        ),
                 dcc.Store(id='mtp-test-plans'    ),
                 html.Br(),
                 top_row_form,
@@ -919,7 +919,8 @@ def update_styles(selected_row):
         ]
 
 @callback(
-    Output('steps-table', 'children'),
+    Output('steps-table-div', 'children'),
+    # Output('steps-table', 'data'    ),
 
     Input ('test-plans'    , 'selected_rows'),
     Input ('test-plans'    , 'data'         ),
@@ -930,15 +931,19 @@ def test_steps(selected_row, rows, selected_test_plans):
         return dash.no_update
     else:
         row = rows[selected_row[0]]
+        print(f'test_steps: row selected: {row}')
         test_name  = row.get('test_name')
         test_plans = pd.DataFrame(selected_test_plans)
         t_steps    = pd.DataFrame(test_plans[test_plans['test_name'] == test_name]['test_steps'].values[0])
         t_steps = t_steps[['step', 'subject', 'exp_sap', 'exp_wms', 'status', 'symbol']]
         t_columns = [{'name': i, 'id': i, 'deletable': False} for i in t_steps.columns]
+
         t_columns[4].update({'presentation': 'dropdown', 'editable': True})
         t_columns[5].update({'presentation': 'markdown', 'editable': True})
+
         return html.Div(
             dt.DataTable(
+                id='steps-table',
                 data = t_steps.to_dict('records'),
                 columns=t_columns[::-1],
                 style_header=header_style,
@@ -955,7 +960,48 @@ def test_steps(selected_row, rows, selected_test_plans):
             lang='he'
         )
 
+@callback(
+    # Output('steps-table', 'data'    ),
+    Output('diff-store' , 'data'),
+    Output('steps-table', 'data'),
+
+    Input('steps-table', 'data_timestamp'),
+    State('steps-table', 'data'          ),
+    State('steps-table', 'data_previous' ),
+    State('diff-store' , 'data'          ),
+)
+def steps_manager(ts, data_current, data_previous, diff_store_data):
+    ban      = '<i class="fas fa-ban           text-mute    mt-3 d-flex flex-row justify-content-center"></i>'
+    progress = '<i class="fas fa-bars-progress text-body    mt-3 d-flex flex-row justify-content-center"></i>'
+    problem  = '<i class="fas fa-bug           text-danger  mt-3 d-flex flex-row justify-content-center"></i>'
+    done     = '<i class="fas fa-check         text-success mt-3 d-flex flex-row justify-content-center"></i>'
+    status_map = {
+        Status.P_10: ban,
+        Status.P_11: progress,
+        Status.P_12: problem,
+        Status.P_02: done
+    }
+    if ts is None:
+        return dash.no_update
+
+    diff_store_data     = diff_store_data or {}
+    diff_store_data[ts] = diff_dashtable(data_current, data_previous)
+    dff = pd.DataFrame(data_current)
+    if diff_store_data[ts]:
+        current_status = diff_store_data[ts][0].get('current_value')
+        current_index = diff_store_data[ts][0].get('index')
+        symbol = status_map[current_status]
+        diff_store_data[ts][0].update({'icon': symbol})
+        dff.loc[current_index, 'symbol'] = symbol
+        dff.loc[current_index, 'status'] = current_status
+
+    dt_changes = []
+    for v in diff_store_data.values():
+        dt_changes.append(f"* {v}")
+    changes = [dcc.Markdown(change) for change in dt_changes]
+    return diff_store_data, dff.to_dict('records')
 ######################################################################################################################
+
 @callback(
     Output('document-detail-row', 'children'     ),
     Output('record-id'          , 'data'         ),
@@ -1130,7 +1176,7 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
         third_row = dbc.Row(
             [
                 dbc.Col(
-                    id='steps-table',
+                    id='steps-table-div',
                     class_name='col-8'
                 ),
                 dbc.Col(
@@ -1156,6 +1202,7 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
                 first_row ,
                 second_row,
                 third_row ,
+                html.Br()
             ]
         )
         return top_row, info_row, t_name, m_layout, test_plans
@@ -1217,6 +1264,13 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
     owner_name          = None
     t_plans             = None
     mtp_layout          = None
+
+    ctx_msg = json.dumps({
+        'states'   : ctx.states,
+        'triggered': ctx.triggered,
+        'inputs'   : ctx.inputs
+    }, indent=2)
+
     if ctx.triggered_id == 'task-table' and ctx.inputs.get('task-table.selected_rows'):
         selected_row = rows[selected_row[0]]
         selected_id  = selected_row['_id']
