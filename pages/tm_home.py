@@ -24,6 +24,17 @@ dash.register_page(
     path='/home'
 )
 
+ban      = '<i class="fas fa-ban     text-mute    mt-3 d-flex flex-row justify-content-center"></i>'
+progress = '<i class="fas fa-running text-body    mt-3 d-flex flex-row justify-content-center"></i>'
+problem  = '<i class="fas fa-bug     text-white   mt-3 d-flex flex-row justify-content-center"></i>'
+done     = '<i class="fas fa-check   text-body    mt-3 d-flex flex-row justify-content-center"></i>'
+status_map = {
+    Status.P_10: ban,
+    Status.P_11: progress,
+    Status.P_12: problem,
+    Status.P_02: done
+}
+
 issue_status = [Status.P_01, Status.P_02, Status.P_03, Status.P_04]
 test_status  = [Status.P_10, Status.P_11, Status.P_12, Status.P_02]
 m4n_docx     = [Status.P_01, Status.P_15, Status.P_16]
@@ -191,18 +202,19 @@ test_steps_formatting.append({
         'if': {'column_id': 'status'},
         'textAlign': 'center',
         'backgroundColor': 'rgb(240, 240, 240)',
-        'width': '15%',
+        'width': '20%',
     })
 test_steps_formatting.append({
         'if': {'column_id': 'symbol'},
-        'textAlign': 'center',
-        'backgroundColor': 'rgb(240, 240, 240)',
-        'width': '10%',
-    })
+        'textAlign': 'left',
+        'width': '8%',
+        'backgroundColor': 'whitesmoke',
+})
 test_steps_formatting.append({
         'if': {'column_id': 'step'},
         'textAlign': 'center',
-        'backgroundColor': 'rgb(240, 240, 240)',
+        'backgroundColor': 'whitesmoke',
+        # 'backgroundColor': 'rgb(240, 240, 240)',
         'width': '5%',
     })
 
@@ -232,6 +244,34 @@ column_formatting.append({
     'width'          : '38%',
 })
 
+test_tables_style_header_conditional = [
+    {
+        'if': {'column_id': 'symbol'},
+        'color': 'rgb(230, 230, 230)',
+    },
+    {
+        'if': {'column_id': 'status'},
+        'backgroundColor': '#0074D9',
+        'color': 'whitesmoke',
+    }
+]
+test_tables_style_data_conditional = [
+    {
+        'if': {
+            # 'column_id': 'exp_wms',
+            'filter_query': '{{status}} = {}'.format(Status.P_02)
+        },
+        'backgroundColor': 'lightgreen',
+        'color': 'midnightblue'
+    },
+    {
+        'if': {
+            'filter_query': '{{status}} = {}'.format(Status.P_12)
+        },
+        'backgroundColor': '#85144b',
+        'color': 'whitesmoke'
+    }
+]
 table_css  = [
     {                                 # remove toggle_button for the table
         'selector': '.show-hide',
@@ -640,6 +680,7 @@ def layout():
                 dcc.Store(id='previous-dropdowns'),
                 dcc.Store(id='diff-store'        ),
                 dcc.Store(id='mtp-test-plans'    ),
+                dcc.Store(id='moshe-id'    ),
                 html.Br(),
                 top_row_form,
                 html.Br(),
@@ -770,7 +811,8 @@ def update_styles(selected_row):
                 'if': {
                     'filter_query': '{{id}} = {}'.format(i)
                 },
-                'backgroundColor': 'midnightblue',
+                # 'backgroundColor': 'midnightblue',
+                'backgroundColor': '#0074D9',
                 'color'          : 'whitesmoke',
             }
             for i in selected_row
@@ -899,24 +941,18 @@ def main_task_handler(previous_dropdowns, filters_query, clicked_chart, b_next, 
         display_charts, message, feedback, b_next, b_prev, filter_dict, dropdown_options
 
 ################################### MTP Callbacks ####################################################################
+
 @callback(
-    Output('test-plans', 'style_data_conditional'       ),
-    Input ('test-plans', 'derived_virtual_selected_rows')
+    Output("test-plans", "style_data_conditional"),
+    Input ("test-plans", "derived_virtual_selected_rows"),
 )
-def update_styles(selected_row):
-    if selected_row is None:
+def style_selected_rows(selRows):
+    if selRows is None:
         return dash.no_update
-    else:
-        return [
-            {
-                'if': {
-                    'filter_query': '{{id}} = {}'.format(i)
-                },
-                'backgroundColor': 'midnightblue',
-                'color'          : 'whitesmoke',
-            }
-            for i in selected_row
-        ]
+    return [
+        {"if": {"filter_query": "{{id}} ={}".format(i)}, "backgroundColor": "#0074D9", 'color': 'whitesmoke'}
+        for i in selRows
+    ]
 
 @callback(
     Output('steps-table-div', 'children'),
@@ -926,42 +962,45 @@ def update_styles(selected_row):
     Input ('test-plans'    , 'data'         ),
     State ('mtp-test-plans', 'data'         ),
 )
-def test_steps(selected_row, rows, selected_test_plans):
+def test_steps_table(selected_row, rows, selected_test_plans):
     if selected_row is None:
         return dash.no_update
     else:
         row = rows[selected_row[0]]
-        print(f'test_steps: row selected: {row}')
         test_name  = row.get('test_name')
         test_plans = pd.DataFrame(selected_test_plans)
         t_steps    = pd.DataFrame(test_plans[test_plans['test_name'] == test_name]['test_steps'].values[0])
-        t_steps = t_steps[['step', 'subject', 'exp_sap', 'exp_wms', 'status', 'symbol']]
+        t_steps = t_steps[['mtp_id', 'test_name', 'step', 'subject', 'exp_sap', 'exp_wms', 'status', 'symbol']]
         t_columns = [{'name': i, 'id': i, 'deletable': False} for i in t_steps.columns]
 
-        t_columns[4].update({'presentation': 'dropdown', 'editable': True})
-        t_columns[5].update({'presentation': 'markdown', 'editable': True})
+        t_columns[6].update({'presentation': 'dropdown', 'editable': True})
+        t_columns[7].update({'presentation': 'markdown', 'editable': True})
 
         return html.Div(
             dt.DataTable(
                 id='steps-table',
                 data = t_steps.to_dict('records'),
                 columns=t_columns[::-1],
+                hidden_columns=['mtp_id', 'test_name'],
                 style_header=header_style,
                 dropdown=testplan_dropdown,
                 markdown_options={"html": True},
                 style_cell={
-                    'whiteSpace': 'normal',
-                    'height'    : 'auto'
+                    'whiteSpace'     : 'normal',
+                    'height'         : 'auto',
+                    'border'         : '1px solid rgb(0, 116, 217)',
+                    'backgroundColor': 'rgb(231, 235, 224)',
                 },
                 css=table_css,
                 style_cell_conditional=test_steps_formatting,
+                style_header_conditional=test_tables_style_header_conditional,
+                style_data_conditional=test_tables_style_data_conditional
             ),
             dir='ltr',
             lang='he'
         )
 
 @callback(
-    # Output('steps-table', 'data'    ),
     Output('diff-store' , 'data'),
     Output('steps-table', 'data'),
 
@@ -970,17 +1009,7 @@ def test_steps(selected_row, rows, selected_test_plans):
     State('steps-table', 'data_previous' ),
     State('diff-store' , 'data'          ),
 )
-def steps_manager(ts, data_current, data_previous, diff_store_data):
-    ban      = '<i class="fas fa-ban           text-mute    mt-3 d-flex flex-row justify-content-center"></i>'
-    progress = '<i class="fas fa-bars-progress text-body    mt-3 d-flex flex-row justify-content-center"></i>'
-    problem  = '<i class="fas fa-bug           text-danger  mt-3 d-flex flex-row justify-content-center"></i>'
-    done     = '<i class="fas fa-check         text-success mt-3 d-flex flex-row justify-content-center"></i>'
-    status_map = {
-        Status.P_10: ban,
-        Status.P_11: progress,
-        Status.P_12: problem,
-        Status.P_02: done
-    }
+def steps_table_update_manager(ts, data_current, data_previous, diff_store_data):
     if ts is None:
         return dash.no_update
 
@@ -989,8 +1018,8 @@ def steps_manager(ts, data_current, data_previous, diff_store_data):
     dff = pd.DataFrame(data_current)
     if diff_store_data[ts]:
         current_status = diff_store_data[ts][0].get('current_value')
-        current_index = diff_store_data[ts][0].get('index')
-        symbol = status_map[current_status]
+        current_index  = diff_store_data[ts][0].get('index')
+        symbol = ban if not current_status else status_map[current_status]
         diff_store_data[ts][0].update({'icon': symbol})
         dff.loc[current_index, 'symbol'] = symbol
         dff.loc[current_index, 'status'] = current_status
@@ -1000,7 +1029,31 @@ def steps_manager(ts, data_current, data_previous, diff_store_data):
         dt_changes.append(f"* {v}")
     changes = [dcc.Markdown(change) for change in dt_changes]
     return diff_store_data, dff.to_dict('records')
-######################################################################################################################
+
+@callback(
+    Output('moshe-id'   , 'data'),
+
+    Input ('steps-table', 'data'),
+    State ('test-plans' , 'selected_rows'),
+    State ('task-table' , 'selected_rows'),
+    State ('test-plans' , 'data'         ),
+    State ('task-table' , 'data'         ),
+)
+def testplan_table_effect_from_steps_table_changes(steps_data, selected_plan, selected_task, plan_data, task_data):
+    ctx_msg = json.dumps({
+        'states'   : ctx.states,
+        'triggered': ctx.triggered,
+        'inputs'   : ctx.inputs
+    }, indent=2)
+    print(ctx.triggered_id)
+    if ctx.triggered_id == 'steps-table':
+        m_0 = ctx.triggered[0].get('value')
+        for i in m_0:
+            print(f'{i.get("mtp_id")} - {i.get("test_name")} - {i.get("status")}')
+    else:
+        return dash.no_update
+    return 'moshe'
+################################### END MTP Callbacks ###############################################################
 
 @callback(
     Output('document-detail-row', 'children'     ),
@@ -1106,24 +1159,31 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
 
         dff       = pd.DataFrame(stories)
         t_columns = [{'name': i, 'id': i} for i in dff.columns]
-        # t_columns[4].update({'presentation': 'dropdown', 'editable': True})
         t_columns[5].update({'presentation': 'markdown', 'editable': True})
 
+        dff['id'] = dff.index
         return html.Div(
             dt.DataTable(
                 id='test-plans',
                 columns=t_columns[::-1],
+                hidden_columns=['id'],
                 data=dff.to_dict('records'),
                 row_selectable='single',
+                page_action='native',
+                page_current=0,
+                page_size=ms.PAGE_SIZE,
                 markdown_options={"html": True},
-                # dropdown=testplan_dropdown,
-                style_header=header_style,
-                style_cell={
-                    'whiteSpace': 'normal',
-                    'height'    : 'auto'
-                },
-                css=table_css,
                 style_cell_conditional=testplan_formatting,
+                style_header=header_style,
+                style_header_conditional=test_tables_style_header_conditional,
+                style_cell={
+                    'whiteSpace'     : 'normal',
+                    'height'         : 'auto',
+                    'border'         : '1px solid rgb(0, 116, 217)',
+                    'backgroundColor': 'rgb(231, 235, 224)',
+                },
+                style_data_conditional=test_tables_style_data_conditional,
+                css=table_css,
             ),
             dir='ltr',
             lang='he',
@@ -1171,7 +1231,8 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
                     style=row_style
                 ),
             ],
-            justify='center'
+            justify='center',
+            class_name='mt-1'
         )
         third_row = dbc.Row(
             [
@@ -1264,12 +1325,6 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
     owner_name          = None
     t_plans             = None
     mtp_layout          = None
-
-    ctx_msg = json.dumps({
-        'states'   : ctx.states,
-        'triggered': ctx.triggered,
-        'inputs'   : ctx.inputs
-    }, indent=2)
 
     if ctx.triggered_id == 'task-table' and ctx.inputs.get('task-table.selected_rows'):
         selected_row = rows[selected_row[0]]

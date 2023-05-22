@@ -424,27 +424,6 @@ class MongoManager:
 
         return (self._refresh_data(task_records=records), documents) if records else (pd.DataFrame, 0)
 
-    def multi_facet_query_x(self, collection: str, grand_filter: Dict):
-        db = self._db
-        moshex= grand_filter.copy()
-        department = moshex.pop('department')
-        search_query, updated_query = self._tasks_filter_parser(grand_filter=moshex)
-        cursor = db[collection].aggregate(
-            [
-                {
-                    '$match': {
-                        '$and': [
-                            {} if search_query is None else search_query,
-                            updated_query
-                        ]
-                    }
-                },
-            ]
-        )
-        moshe = [c for c in cursor]
-        x = 1
-        return moshe
-
     def multi_facet_query(self, collection: str, grand_filter: Dict):
         # moshe = self.multi_facet_query_x(collection=collection, grand_filter=grand_filter)
         db = self._db

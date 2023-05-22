@@ -49,7 +49,7 @@ db_object_mapping  = {
 }
 data_table_columns = [
     'due_date', 'source', 'priority', 'status', 'u_name', 'wms_domain', 'sheet', 'doctype', 'subject', 'row_number', '_id', 'id',
-    'department', 'telephone', 'email', 'role',
+    'department', 'telephone', 'email', 'role'
 ]
 
 def fa_text(fa_class: str, text: str) -> dbc.Container:
