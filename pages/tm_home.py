@@ -8,6 +8,7 @@ from dash import html, dcc, callback, Input, Output, State, ctx
 from dash import dash_table as dt
 from plotly import graph_objects as go
 from typing import Tuple, Any
+from collections import Counter
 from schemas import tm_services as sv
 from schemas.fields import Priority, SAPDomainEnum, SAPProcessEnum, Status
 from schemas.mongo_schema import timing_decorator, dt_date
@@ -669,6 +670,20 @@ def diff_dashtable(data, data_previous, row_id_name=None):
             )
     return changes
 
+def testrun_status(child_status: list) -> Status:
+    my_map = {
+        0: Status.P_02,
+        1: Status.P_12,
+        2: Status.P_10
+    }
+    completed   = Counter(child_status).get(Status.P_02) == len(child_status)
+    has_bug     = True if Counter(child_status).get(Status.P_12) else False
+    not_started = Counter(child_status).get(Status.P_10) == len(child_status)
+
+    t = [completed, has_bug, not_started]
+    status_key = [i for i, x in enumerate(t) if x]
+    return Status.P_11 if not status_key else my_map[status_key[0]]
+
 ######################################################################################################################
 def layout():
     return dbc.Container([
@@ -970,8 +985,8 @@ def test_steps_table(selected_row, rows, selected_test_plans):
         test_name  = row.get('test_name')
         test_plans = pd.DataFrame(selected_test_plans)
         t_steps    = pd.DataFrame(test_plans[test_plans['test_name'] == test_name]['test_steps'].values[0])
-        t_steps = t_steps[['mtp_id', 'test_name', 'step', 'subject', 'exp_sap', 'exp_wms', 'status', 'symbol']]
-        t_columns = [{'name': i, 'id': i, 'deletable': False} for i in t_steps.columns]
+        t_steps    = t_steps[['mtp_id', 'test_name', 'step', 'subject', 'exp_sap', 'exp_wms', 'status', 'symbol']]
+        t_columns  = [{'name': i, 'id': i, 'deletable': False} for i in t_steps.columns]
 
         t_columns[6].update({'presentation': 'dropdown', 'editable': True})
         t_columns[7].update({'presentation': 'markdown', 'editable': True})
@@ -1001,8 +1016,7 @@ def test_steps_table(selected_row, rows, selected_test_plans):
         )
 
 @callback(
-    Output('diff-store' , 'data'),
-    Output('steps-table', 'data'),
+    Output('diff-store', 'data'),
 
     Input('steps-table', 'data_timestamp'),
     State('steps-table', 'data'          ),
@@ -1028,10 +1042,11 @@ def steps_table_update_manager(ts, data_current, data_previous, diff_store_data)
     for v in diff_store_data.values():
         dt_changes.append(f"* {v}")
     changes = [dcc.Markdown(change) for change in dt_changes]
-    return diff_store_data, dff.to_dict('records')
+    return diff_store_data   # , dff.to_dict('records')
 
 @callback(
-    Output('moshe-id'   , 'data'),
+    Output('steps-table', 'data'),
+    Output('test-plans' , 'data'),
 
     Input ('steps-table', 'data'),
     State ('test-plans' , 'selected_rows'),
@@ -1039,20 +1054,17 @@ def steps_table_update_manager(ts, data_current, data_previous, diff_store_data)
     State ('test-plans' , 'data'         ),
     State ('task-table' , 'data'         ),
 )
-def testplan_table_effect_from_steps_table_changes(steps_data, selected_plan, selected_task, plan_data, task_data):
-    ctx_msg = json.dumps({
-        'states'   : ctx.states,
-        'triggered': ctx.triggered,
-        'inputs'   : ctx.inputs
-    }, indent=2)
-    print(ctx.triggered_id)
+def parent_status_from_steps_table_changes(steps_data, selected_plan, selected_task, plan_data, task_data):
     if ctx.triggered_id == 'steps-table':
         m_0 = ctx.triggered[0].get('value')
-        for i in m_0:
-            print(f'{i.get("mtp_id")} - {i.get("test_name")} - {i.get("status")}')
+        status_list = [m.get('status') for m in m_0]
+        run_status = testrun_status(child_status=status_list)
+
+        plan_data[selected_plan[0]]['status'] = run_status
+        plan_data[selected_plan[0]]['symbol'] = status_map[run_status]
     else:
         return dash.no_update
-    return 'moshe'
+    return m_0, plan_data
 ################################### END MTP Callbacks ###############################################################
 
 @callback(
@@ -1490,13 +1502,15 @@ def charts_manager(pie_data, bar_data, pdu_data):
             result = None
     return result
 
-# change_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-# ctx_msg = json.dumps({
-#     'states'   : ctx.states,
-#     'triggered': ctx.triggered,
-#     'inputs'   : ctx.inputs
-# }, indent=2)
 """
+    # change_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    ctx_msg = json.dumps({
+        'states'   : ctx.states,
+        'triggered': ctx.triggered,
+        'inputs'   : ctx.inputs
+    }, indent=2)
+    
+    
     def render_steps(step_list: list) -> dt.DataTable:
         records = []
         for t_step in step_list:
