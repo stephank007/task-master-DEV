@@ -84,13 +84,13 @@ task_types   = {
     }
 }   # doctype properties
 
-div_hide   = {
+div_hide               = {
     'display': 'none'
 }
-div_show   = {
+div_show               = {
     'display': 'block'
 }
-note_cell_style = {
+note_cell_style        = {
     'overflow-y': 'scroll',
     'height'    : 'auto'  ,
     'whiteSpace': 'normal',
@@ -143,7 +143,7 @@ update_pane_callbacks  = [
     'update-due-date',
     'update-owner-note'
 ]
-testplan_dropdown = {
+testplan_dropdown      = {
     'status': {
         'options': [
             {'label': i, 'value': i}
@@ -191,6 +191,12 @@ testplan_formatting.append({
     'textAlign': 'center',
 })
 
+test_tables_style_cell = {
+    'whiteSpace'     : 'normal',
+    'height'         : 'auto',
+    'border'         : '1px solid rgb(0, 116, 217)',
+    'backgroundColor': 'rgb(231, 235, 224)',
+}
 test_steps_formatting = [
     {
         'if': {'column_id': c},
@@ -773,6 +779,7 @@ def layout():
             dir='rtl',
             lang='he',
         ),
+        html.Div(id='document-locked'),
         html.Div(id='update-form'),
         html.Hr(),
         html.Div(id='test-detail-pane'),
@@ -861,10 +868,11 @@ def update_styles(selected_row):
     # prevent_initial_call=True
 )
 @timing_decorator
-def main_task_handler(previous_dropdowns, filters_query, clicked_chart, b_next, b_prev, search_input, *args):
+def documents_portal(previous_dropdowns, filters_query, clicked_chart, b_next, b_prev, search_input, *args):
     if ctx.triggered_id == 'clicked-chart':
         filter_dict = filters_query.copy()
         filter_dict.update({'status': None})
+
         clicked_data    = clicked_chart.get('selection')
         triggered_chart = clicked_chart.get('chart'    )
         match triggered_chart:
@@ -912,11 +920,11 @@ def main_task_handler(previous_dropdowns, filters_query, clicked_chart, b_next, 
     xp = 1 if b_prev else 0
     next_or_prev_selected = bool(xn | xp)
 
-    display_charts   = html.Div()
+    display_charts = html.Div()
     if next_or_prev_selected:   # this is for next and prev pages
         filters_1 = filter_dict.copy()
-        df_tasks, documents  = task_db.grand_filter_query(collection='tasks', grand_filter=filters_1, skip=skip)
-        dropdown_options     = previous_dropdowns
+        df_tasks, documents = task_db.grand_filter_query(collection='tasks', grand_filter=filters_1, skip=skip)
+        dropdown_options    = previous_dropdowns
     else:
         filters_2 = filter_dict.copy()
         results   = task_db.multi_facet_query (collection='tasks', grand_filter=filters_2)
@@ -929,7 +937,6 @@ def main_task_handler(previous_dropdowns, filters_query, clicked_chart, b_next, 
         df_tasks         = results[4]
 
         # condition for the displaying charts
-        # if len(df_tasks) > 0 and ctx.triggered_id not in ['page-next', 'page-prev']:
         if len(df_tasks) > 0:
             display_charts = draw_charts(df1=charts_dff, df2=past_due_dff)
 
@@ -955,118 +962,6 @@ def main_task_handler(previous_dropdowns, filters_query, clicked_chart, b_next, 
         records            , \
         display_charts, message, feedback, b_next, b_prev, filter_dict, dropdown_options
 
-################################### MTP Callbacks ####################################################################
-
-@callback(
-    Output("test-plans", "style_data_conditional"),
-    Input ("test-plans", "derived_virtual_selected_rows"),
-)
-def style_selected_rows(selRows):
-    if selRows is None:
-        return dash.no_update
-    return [
-        {"if": {"filter_query": "{{id}} ={}".format(i)}, "backgroundColor": "#0074D9", 'color': 'whitesmoke'}
-        for i in selRows
-    ]
-
-@callback(
-    Output('steps-table-div', 'children'),
-    # Output('steps-table', 'data'    ),
-
-    Input ('test-plans'    , 'selected_rows'),
-    Input ('test-plans'    , 'data'         ),
-    State ('mtp-test-plans', 'data'         ),
-)
-def test_steps_table(selected_row, rows, selected_test_plans):
-    if selected_row is None:
-        return dash.no_update
-    else:
-        row = rows[selected_row[0]]
-        test_name  = row.get('test_name')
-        test_plans = pd.DataFrame(selected_test_plans)
-        t_steps    = pd.DataFrame(test_plans[test_plans['test_name'] == test_name]['test_steps'].values[0])
-        t_steps    = t_steps[['mtp_id', 'test_name', 'step', 'subject', 'exp_sap', 'exp_wms', 'status', 'symbol']]
-        t_columns  = [{'name': i, 'id': i, 'deletable': False} for i in t_steps.columns]
-
-        t_columns[6].update({'presentation': 'dropdown', 'editable': True})
-        t_columns[7].update({'presentation': 'markdown', 'editable': True})
-
-        return html.Div(
-            dt.DataTable(
-                id='steps-table',
-                data = t_steps.to_dict('records'),
-                columns=t_columns[::-1],
-                hidden_columns=['mtp_id', 'test_name'],
-                style_header=header_style,
-                dropdown=testplan_dropdown,
-                markdown_options={"html": True},
-                style_cell={
-                    'whiteSpace'     : 'normal',
-                    'height'         : 'auto',
-                    'border'         : '1px solid rgb(0, 116, 217)',
-                    'backgroundColor': 'rgb(231, 235, 224)',
-                },
-                css=table_css,
-                style_cell_conditional=test_steps_formatting,
-                style_header_conditional=test_tables_style_header_conditional,
-                style_data_conditional=test_tables_style_data_conditional
-            ),
-            dir='ltr',
-            lang='he'
-        )
-
-@callback(
-    Output('diff-store', 'data'),
-
-    Input('steps-table', 'data_timestamp'),
-    State('steps-table', 'data'          ),
-    State('steps-table', 'data_previous' ),
-    State('diff-store' , 'data'          ),
-)
-def steps_table_update_manager(ts, data_current, data_previous, diff_store_data):
-    if ts is None:
-        return dash.no_update
-
-    diff_store_data     = diff_store_data or {}
-    diff_store_data[ts] = diff_dashtable(data_current, data_previous)
-    dff = pd.DataFrame(data_current)
-    if diff_store_data[ts]:
-        current_status = diff_store_data[ts][0].get('current_value')
-        current_index  = diff_store_data[ts][0].get('index')
-        symbol = ban if not current_status else status_map[current_status]
-        diff_store_data[ts][0].update({'icon': symbol})
-        dff.loc[current_index, 'symbol'] = symbol
-        dff.loc[current_index, 'status'] = current_status
-
-    dt_changes = []
-    for v in diff_store_data.values():
-        dt_changes.append(f"* {v}")
-    changes = [dcc.Markdown(change) for change in dt_changes]
-    return diff_store_data   # , dff.to_dict('records')
-
-@callback(
-    Output('steps-table', 'data'),
-    Output('test-plans' , 'data'),
-
-    Input ('steps-table', 'data'),
-    State ('test-plans' , 'selected_rows'),
-    State ('task-table' , 'selected_rows'),
-    State ('test-plans' , 'data'         ),
-    State ('task-table' , 'data'         ),
-)
-def parent_status_from_steps_table_changes(steps_data, selected_plan, selected_task, plan_data, task_data):
-    if ctx.triggered_id == 'steps-table':
-        m_0 = ctx.triggered[0].get('value')
-        status_list = [m.get('status') for m in m_0]
-        run_status = testrun_status(child_status=status_list)
-
-        plan_data[selected_plan[0]]['status'] = run_status
-        plan_data[selected_plan[0]]['symbol'] = status_map[run_status]
-    else:
-        return dash.no_update
-    return m_0, plan_data
-################################### END MTP Callbacks ###############################################################
-
 @callback(
     Output('document-detail-row', 'children'     ),
     Output('record-id'          , 'data'         ),
@@ -1081,7 +976,7 @@ def parent_status_from_steps_table_changes(steps_data, selected_plan, selected_t
     Input ('task-table'         , 'selected_rows'),
     State ('task-table'         , 'data'         ),
 )
-def document_detail_pane(switch_pane, selected_row, rows):  # render the update pane only
+def document_update_pane(switch_pane, selected_row, rows):  # render the update pane only
     ###
     def create_md_note(header: str, note: str, oid: Any) -> dbc.Col:
         if note is None:
@@ -1177,32 +1072,27 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
         return html.Div(
             dt.DataTable(
                 id='test-plans',
-                columns=t_columns[::-1],
-                hidden_columns=['id'],
                 data=dff.to_dict('records'),
-                row_selectable='single',
-                page_action='native',
-                page_current=0,
+                columns=t_columns[::-1],
+                css=table_css,
                 page_size=ms.PAGE_SIZE,
+                style_cell=test_tables_style_cell,
+                page_action='native',
+                style_header=header_style,
+                page_current=0,
+                hidden_columns=['id'],
+                row_selectable='single',
                 markdown_options={"html": True},
                 style_cell_conditional=testplan_formatting,
-                style_header=header_style,
-                style_header_conditional=test_tables_style_header_conditional,
-                style_cell={
-                    'whiteSpace'     : 'normal',
-                    'height'         : 'auto',
-                    'border'         : '1px solid rgb(0, 116, 217)',
-                    'backgroundColor': 'rgb(231, 235, 224)',
-                },
                 style_data_conditional=test_tables_style_data_conditional,
-                css=table_css,
+                style_header_conditional=test_tables_style_header_conditional,
             ),
             dir='ltr',
             lang='he',
         )
 
-    def test_document_handler(db_document: dict, symbol: str) -> list:
-        top_row, info_row, t_name = issue_document_handler(
+    def test_document_layout(db_document: dict, symbol: str) -> list:
+        top_row, info_row, t_name = issue_document_layout(
             db_document=db_document,
             symbol=symbol
         )
@@ -1253,18 +1143,31 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
                     class_name='col-8'
                 ),
                 dbc.Col(
-                    html.Div(render_table(bp_rns)),
-                    class_name='col-2',
-                    style=row_style
+                    html.Div(
+                        [
+                            dbc.Row(
+                                dbc.Button(
+                                    "עדכון ריצה",
+                                    id='testrun-button',
+                                    size="lg",
+                                    class_name="h-100 me-1 mt-1",
+                                    color='dark',
+                                    disabled=True,
+                                )
+                            ),
+                        ]
+                    ),
+                    class_name='col-1'
                 ),
                 dbc.Col(
-                    html.Div(render_table(chapters)),
-                    class_name='col-1',
-                    style=row_style
-                ),
-                dbc.Col(
-                    html.Div(render_table(systems)),
-                    class_name='col-1',
+                    html.Div(
+                        [
+                            dbc.Row(html.Div(render_table(bp_rns  ))),
+                            dbc.Row(html.Div(render_table(chapters))),
+                            dbc.Row(html.Div(render_table(systems ))),
+                        ]
+                    ),
+                    class_name='col-3',
                     style=row_style
                 ),
             ],
@@ -1280,7 +1183,7 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
         )
         return top_row, info_row, t_name, m_layout, test_plans
 
-    def issue_document_handler(db_document: dict, symbol: str) -> list:
+    def issue_document_layout(db_document: dict, symbol: str) -> list:
         try:
             update_object = db_document.get('update')
             update_date   = update_object.get('lastUpdated')
@@ -1351,25 +1254,25 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
         match doctype:
             case 'issue':
                 doctype_symbol = 'fas fa-file fa-lg text-info'
-                document_detail_row, record_info, owner_name = issue_document_handler(
+                document_detail_row, record_info, owner_name = issue_document_layout(
                     db_document=db_record,
                     symbol=doctype_symbol
                 )
             case 'test':
                 doctype_symbol = 'fas fa-flask fa-lg text-info'
-                document_detail_row, record_info, owner_name, mtp_layout, t_plans = test_document_handler(
+                document_detail_row, record_info, owner_name, mtp_layout, t_plans = test_document_layout(
                     db_document=db_record,
                     symbol=doctype_symbol
                 )
             case 'm4n-docx':
                 doctype_symbol = 'far fa-edit fa-lg text-info'
-                document_detail_row, record_info, owner_name = issue_document_handler(
+                document_detail_row, record_info, owner_name = issue_document_layout(
                     db_document=db_record,
                     symbol=doctype_symbol
                 )
             case _:
                 doctype_symbol = 'far fa-edit fa-lg text-info'
-                document_detail_row, record_info, owner_name = issue_document_handler(
+                document_detail_row, record_info, owner_name = issue_document_layout(
                     db_document=db_record,
                     symbol=doctype_symbol
                 )
@@ -1384,7 +1287,7 @@ def document_detail_pane(switch_pane, selected_row, rows):  # render the update 
     State ('owner-notes'     , 'data'         ),
     State ('owner-date-table', 'data'         ),
 )
-def manage_owner_note(selected_row_id, note_rows, date_rows):
+def owner_notes_organizer(selected_row_id, note_rows, date_rows):
     change_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     h1 = 'תאריך עדכון'
     h2 = 'הערת אחראי'
@@ -1431,7 +1334,7 @@ def manage_owner_note(selected_row_id, note_rows, date_rows):
     Input ('owner-name'   , 'data'    ),
     [Input(v_callback, 'value') for v_callback in update_pane_callbacks],
 )
-def update_document_manager(n_clicks, selected_row, clicks, search, row_id, active_user, owner_name, *args):
+def document_update_manager(n_clicks, selected_row, clicks, search, row_id, active_user, owner_name, *args):
     change_id = [p['prop_id'] for p in dash.callback_context.triggered][0].split('.')[0]
     empty = dbc.Alert(f'', color='light', class_name='g-1')
     match change_id:
@@ -1467,13 +1370,13 @@ def update_document_manager(n_clicks, selected_row, clicks, search, row_id, acti
             return dash.no_update
 
 @callback(
-    Output('clicked-chart', 'data'),
+    Output('clicked-chart', 'data' ),
 
     Input ('pie-chart', 'clickData'),
     Input ('bar-chart', 'clickData'),
     Input ('pdu-chart', 'clickData'),
 )
-def charts_manager(pie_data, bar_data, pdu_data):
+def parse_chart_event(pie_data, bar_data, pdu_data):
     match ctx.triggered_id:
         case 'pie-chart':
             try:
@@ -1502,6 +1405,108 @@ def charts_manager(pie_data, bar_data, pdu_data):
             result = None
     return result
 
+################################### MTP Callbacks ####################################################################
+@callback(
+    Output('test-plans', 'style_data_conditional'       ),
+    Input ('test-plans', 'derived_virtual_selected_rows'),
+)
+def highlight_selected_row(selRows):
+    if selRows is None:
+        return dash.no_update
+    return [
+        {"if": {"filter_query": "{{id}} ={}".format(i)}, "backgroundColor": "#0074D9", 'color': 'whitesmoke'}
+        for i in selRows
+    ]
+
+@callback(
+    Output('steps-table-div', 'children'),
+    Output('testrun-button', 'disabled' ),
+
+    Input('testrun-button', 'n_clicks'     ),
+    Input('test-plans'    , 'selected_rows'),
+    Input('test-plans'    , 'data'         ),
+    State('mtp-test-plans', 'data'         ),
+)
+def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
+    disabled = True if ctx.triggered_id == 'testrun-button' else False
+
+    if selected_row is None:
+        return dash.no_update
+    else:
+        row = rows[selected_row[0]]
+
+        test_name  = row.get('test_name')
+        test_plans = pd.DataFrame(selected_test_plans)
+        t_steps    = pd.DataFrame(test_plans[test_plans['test_name'] == test_name]['test_steps'].values[0])
+        t_steps    = t_steps[['mtp_id', 'test_name', 'step', 'subject', 'exp_sap', 'exp_wms', 'status', 'symbol']]
+        t_columns  = [{'name': i, 'id': i, 'deletable': False} for i in t_steps.columns]
+
+        t_columns[6].update({'presentation': 'dropdown', 'editable': True})
+        t_columns[7].update({'presentation': 'markdown', 'editable': True})
+
+        return html.Div(
+            dt.DataTable(
+                id='steps-table',
+                data=t_steps.to_dict('records'),
+                columns=t_columns[::-1],
+                css=table_css,
+                dropdown=testplan_dropdown,
+                style_cell=test_tables_style_cell,
+                style_header=header_style,
+                hidden_columns=['mtp_id', 'test_name'],
+                markdown_options={"html": True},
+                style_cell_conditional=test_steps_formatting,
+                style_data_conditional=test_tables_style_data_conditional,
+                style_header_conditional=test_tables_style_header_conditional,
+            ),
+            dir='ltr',
+            lang='he'
+        ), disabled
+
+@callback(
+    Output('diff-store', 'data'),
+    Output('steps-table', 'data'),
+
+    Input('testrun-button', 'n_clicks'   ),
+    #
+    Input('steps-table', 'data_timestamp'),
+    State('steps-table', 'data'          ),
+    State('steps-table', 'data_previous' ),
+    State('diff-store' , 'data'          ),
+    # parent tables
+    State('test-plans', 'selected_rows'),
+    State('task-table', 'selected_rows'),
+    State('test-plans', 'data'         ),
+    State('task-table', 'data'         ),
+)
+def testrun_diff_update_manager(
+        clicks,
+        ts, data_current, data_previous, diff_store_data,
+        selected_plan, selected_task, plan_data, task_data
+):
+    if ts is None:
+        return dash.no_update
+
+    diff_store_data = diff_store_data or {}
+    diff_store_data[ts] = diff_dashtable(data_current, data_previous)
+    dff = pd.DataFrame(data_current)
+    if diff_store_data[ts]:
+        current_status = diff_store_data[ts][0].get('current_value')
+        current_index = diff_store_data[ts][0].get('index')
+        symbol = ban if not current_status else status_map[current_status]
+        diff_store_data[ts][0].update({'icon': symbol})
+        dff.loc[current_index, 'symbol'] = symbol
+        dff.loc[current_index, 'status'] = current_status
+
+    if ctx.triggered_id == 'testrun-button':
+        run_status = testrun_status(child_status=[c_status['status'] for c_status in data_current])
+        plan_data[selected_plan[0]]['status'] = run_status
+        plan_data[selected_plan[0]]['symbol'] = status_map[run_status]
+        return diff_store_data, data_current
+
+    records = dff.to_dict('records')
+    return diff_store_data, records
+################################### ***END MTP Callbacks *** ##########################################################
 """
     # change_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     ctx_msg = json.dumps({
@@ -1525,4 +1530,41 @@ def charts_manager(pie_data, bar_data, pdu_data):
             records.append(record)
         return pd.DataFrame(records)
 
+    dt_changes = []
+    for v in diff_store_data.values():
+        dt_changes.append(f"* {v}")
+    changes = [dcc.Markdown(change) for change in dt_changes]
+
+@callback(
+    Output('steps-table', 'data'),
+    Output('test-plans' , 'data'),
+
+    Input ('steps-table', 'data'),
+    State ('test-plans' , 'selected_rows'),
+    State ('task-table' , 'selected_rows'),
+    State ('test-plans' , 'data'         ),
+    State ('task-table' , 'data'         ),
+)
+def parent_status_from_steps_table_changes(steps_data, selected_plan, selected_task, plan_data, task_data):
+    if ctx.triggered_id == 'steps-table':
+        m_0 = ctx.triggered[0].get('value')
+        status_list = [m.get('status') for m in m_0]
+        run_status = testrun_status(child_status=status_list)
+
+        plan_data[selected_plan[0]]['status'] = run_status
+        plan_data[selected_plan[0]]['symbol'] = status_map[run_status]
+    else:
+        return dash.no_update
+    return m_0, plan_data
+    
+                            dbc.Row(
+                                dbc.Button(
+                                    "סגור ריצה",
+                                    id='testrun-close',
+                                    size="lg",
+                                    class_name="h-100 me-1 mt-1",
+                                    color='dark',
+                                    disabled=False,
+                                )
+                            )
 """
