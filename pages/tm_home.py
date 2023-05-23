@@ -197,7 +197,7 @@ test_tables_style_cell = {
     'border'         : '1px solid rgb(0, 116, 217)',
     'backgroundColor': 'rgb(231, 235, 224)',
 }
-test_steps_formatting = [
+test_steps_formatting  = [
     {
         'if': {'column_id': c},
         'backgroundColor': 'rgb(240, 240, 240)',
@@ -794,7 +794,7 @@ def layout():
     Output('charts-pane'        , 'style'),
 
     Input ('switch-pane',      'n_clicks'),
-    Input('task-table'  , 'selected_rows'),
+    Input ('task-table' , 'selected_rows'),
 )
 def pane_manger(selected, clicked: int):
     if ctx.triggered_id == 'task-table' and ctx.inputs.get('task-table.selected_rows'):
@@ -824,7 +824,7 @@ def authentication_check(active_user):
     Output('task-table', 'style_data_conditional'       ),
     Input ('task-table', 'derived_virtual_selected_rows')
 )
-def update_styles(selected_row):
+def highlight_selected_task(selected_row):
     if selected_row is None:
         return dash.no_update
     else:
@@ -976,8 +976,16 @@ def documents_portal(previous_dropdowns, filters_query, clicked_chart, b_next, b
     Input ('task-table'         , 'selected_rows'),
     State ('task-table'         , 'data'         ),
 )
-def document_update_pane(switch_pane, selected_row, rows):  # render the update pane only
-    ###
+def document_update_portal(switch_pane, selected_row, rows):  # render the update pane only
+    """
+    her we manage the sorts of doctype update flow. main focus is given to test flow
+    :param switch_pane:
+    :param selected_row:
+    :param rows:
+    :return:
+        document_detail_row, selected_id, owner_name, record_info,
+        input_row, update_form_by_record_type, mtp_layout, t_plans
+    """
     def create_md_note(header: str, note: str, oid: Any) -> dbc.Col:
         if note is None:
             return dbc.Col(html.Div([html.H6(header, style={'margin-bottom': '0px'}),]))
@@ -1051,10 +1059,9 @@ def document_update_pane(switch_pane, selected_row, rows):  # render the update 
 
     def render_testplans_table(test_plans: list) -> dt.DataTable:
         stories = []
-        not_started = '<i class="fas fa-ban text-muted d-flex flex-row justify-content-center"></i>'
         for plan in test_plans:
             story = {
-                # 'mtp_id'   : plan.get('mtp_id'   ),
+                'mtp_id'   : plan.get('mtp_id'   ),
                 'test_name': plan.get('test_name'),
                 'story'    : plan.get('story'    ),
                 'prereq'   : plan.get('prereq'   ),
@@ -1066,7 +1073,7 @@ def document_update_pane(switch_pane, selected_row, rows):  # render the update 
 
         dff       = pd.DataFrame(stories)
         t_columns = [{'name': i, 'id': i} for i in dff.columns]
-        t_columns[5].update({'presentation': 'markdown', 'editable': True})
+        t_columns[6].update({'presentation': 'markdown', 'editable': True})
 
         dff['id'] = dff.index
         return html.Div(
@@ -1080,7 +1087,7 @@ def document_update_pane(switch_pane, selected_row, rows):  # render the update 
                 page_action='native',
                 style_header=header_style,
                 page_current=0,
-                hidden_columns=['id'],
+                hidden_columns=['id', 'mtp_id'],
                 row_selectable='single',
                 markdown_options={"html": True},
                 style_cell_conditional=testplan_formatting,
@@ -1143,19 +1150,13 @@ def document_update_pane(switch_pane, selected_row, rows):  # render the update 
                     class_name='col-8'
                 ),
                 dbc.Col(
-                    html.Div(
-                        [
-                            dbc.Row(
-                                dbc.Button(
-                                    "עדכון ריצה",
-                                    id='testrun-button',
-                                    size="lg",
-                                    class_name="h-100 me-1 mt-1",
-                                    color='dark',
-                                    disabled=True,
-                                )
-                            ),
-                        ]
+                    dbc.Button(
+                        "עדכון ריצה",
+                        id='testrun-button',
+                        size="lg",
+                        class_name="h-100 me-1 mt-1",
+                        color='dark',
+                        disabled=True,
                     ),
                     class_name='col-1'
                 ),
@@ -1230,14 +1231,9 @@ def document_update_pane(switch_pane, selected_row, rows):  # render the update 
             user_object
         ]
         return detail_row, document_info, o_name
-
     ####################################################################################################################
-
     update_form_empty   = html.Div()
     input_row           = selected_row
-    document_detail_row = []
-    record_info         = html.Div()
-    owner_name          = None
     t_plans             = None
     mtp_layout          = None
 
@@ -1253,7 +1249,7 @@ def document_update_pane(switch_pane, selected_row, rows):  # render the update 
         h2 = task_types.get(doctype).get('note_headers').get('H2')
         match doctype:
             case 'issue':
-                doctype_symbol = 'fas fa-file fa-lg text-info'
+                doctype_symbol = 'fas fa-book-open fa-lg text-info'
                 document_detail_row, record_info, owner_name = issue_document_layout(
                     db_document=db_record,
                     symbol=doctype_symbol
@@ -1464,7 +1460,7 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
         ), disabled
 
 @callback(
-    Output('diff-store', 'data'),
+    Output('diff-store' , 'data'),
     Output('steps-table', 'data'),
 
     Input('testrun-button', 'n_clicks'   ),
