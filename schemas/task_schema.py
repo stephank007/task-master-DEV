@@ -51,3 +51,5 @@ class TaskModel(BaseModel):
 class TaskSchema(MongoManager):
     def get_db_name(self):
         print(3*'\n', self._db)
+
+# print(TaskModel.schema_json(indent=4, ensure_ascii=False).encode('utf-8').decode())

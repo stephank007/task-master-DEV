@@ -1,21 +1,21 @@
 import dash
 import json
 import pandas as pd
-import dash_bootstrap_components as dbc
-import plotly.express as px
+import plotly.express       as px
 import schemas.mongo_schema as ms
-from dash import html, dcc, callback, Input, Output, State, ctx
-from dash import dash_table as dt
-from plotly import graph_objects as go
-from typing import Tuple, Any
+import dash_bootstrap_components  as dbc
+from bson        import ObjectId
+from dash        import html, dcc, callback, Input, Output, State, ctx
+from dash        import dash_table    as dt
+from plotly      import graph_objects as go
+from schemas     import tm_services   as sv
+from typing      import Tuple, Any
+from devtools    import debug
 from collections import Counter
-from schemas import tm_services as sv
-from schemas.fields import Priority, SAPDomainEnum, SAPProcessEnum, Status
+from schemas.fields       import Priority, SAPDomainEnum, SAPProcessEnum, Status
 from schemas.mongo_schema import timing_decorator, dt_date
-from devtools import debug
 
 # db.collection.createIndex( { "$**": "text" } )
-
 page_number = 0
 task_db     = sv.task_db
 
@@ -1241,7 +1241,7 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
         selected_row = rows[selected_row[0]]
         selected_id  = selected_row['_id']
         db_record    = task_db.get_document_by_oid(collection='tasks', oid=selected_id)
-        db_record    = [c for c in db_record][0]
+        # db_record    = [c for c in db_record][0]
         doctype      = db_record.get('reference').get('doctype')
 
         h0 = task_types.get(doctype).get('note_headers').get('H0')
@@ -1291,7 +1291,10 @@ def owner_notes_organizer(selected_row_id, note_rows, date_rows):
     def select_note_lines(row_id: int):
         selected_date = date_rows[row_id][h1]
         record_db = task_db.get_document_by_oid(collection='tasks', oid=oid)
-        owner_notes = [note for note in record_db][0].get('owner_notes')
+        # owner_notes = [note for note in record_db][0].get('owner_notes')
+        # owner_notes = [note for note in record_db].get('owner_notes')
+        owner_notes = record_db.get('owner_notes')
+        owner_notes = [note for note in owner_notes]
 
         owner_depth = len(owner_notes) - 1
         o_index     = owner_depth - row_id
@@ -1462,37 +1465,59 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
 @callback(
     Output('diff-store' , 'data'),
     Output('steps-table', 'data'),
-
+    ##
     Input('testrun-button', 'n_clicks'   ),
-    #
+    ##
     Input('steps-table', 'data_timestamp'),
     State('steps-table', 'data'          ),
     State('steps-table', 'data_previous' ),
     State('diff-store' , 'data'          ),
-    # parent tables
+    ## parent tables
     State('test-plans', 'selected_rows'),
     State('task-table', 'selected_rows'),
     State('test-plans', 'data'         ),
     State('task-table', 'data'         ),
 )
 def testrun_diff_update_manager(
-        clicks,
-        ts, data_current, data_previous, diff_store_data,
-        selected_plan, selected_task, plan_data, task_data
+    clicks,
+    ts, data_current, data_previous, diff_store_data,
+    selected_plan, selected_task, plan_data, task_data
 ):
     if ts is None:
         return dash.no_update
 
-    diff_store_data = diff_store_data or {}
+    diff_store_data     = diff_store_data or {}
     diff_store_data[ts] = diff_dashtable(data_current, data_previous)
     dff = pd.DataFrame(data_current)
     if diff_store_data[ts]:
         current_status = diff_store_data[ts][0].get('current_value')
-        current_index = diff_store_data[ts][0].get('index')
+        current_index  = diff_store_data[ts][0].get('index')
         symbol = ban if not current_status else status_map[current_status]
         diff_store_data[ts][0].update({'icon': symbol})
         dff.loc[current_index, 'symbol'] = symbol
         dff.loc[current_index, 'status'] = current_status
+        mtp_record = task_data[0]
+        test_name  = plan_data[selected_plan[0]]['test_name']
+        query = {
+            #cursor = db.inventory.find({"instock": {"$elemMatch": {"qty": 5, "warehouse": "A"}}})
+            # 'mtp_object.test_plan': {'$elemMatch': {'test_name': test_name}}
+        }
+        db = task_db.get_db()
+        collection = db['tasks']
+        cursor = collection.aggregate(
+            [
+                {
+                    '$match': {
+                        '_id': ObjectId(mtp_record.get('_id'))
+                    }
+                },
+                {'$unwind': '$mtp_object.test_plan'},
+                # {'$match': {'test_plan.test_name': test_name}}
+            ]
+        )
+        moshe = [c for c in cursor]
+        # debug(moshe)
+        # cursor = task_db.find_documents_by_query(collection='tasks', query=query)
 
     if ctx.triggered_id == 'testrun-button':
         run_status = testrun_status(child_status=[c_status['status'] for c_status in data_current])

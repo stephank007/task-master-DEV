@@ -233,4 +233,4 @@ class TaskUpdateModel(BaseModel):
         if v is None or values['role'] in [Role.R_02, Role.R_03]:
             return
         else:
-            raise ValueError('<- only admin users can change status')
+            raise ValueError('<- only authorized users are allowed to change document status')

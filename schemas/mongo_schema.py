@@ -110,7 +110,25 @@ class MongoManager:
 
     def get_document_by_oid(self, collection: str, oid: str) -> pymongo.cursor.Cursor:
         db = self._db
-        cursor = db[collection].find({'_id': ObjectId(oid)})
+        cursor = db[collection].find_one_and_update(
+            {'_id': ObjectId(oid)},
+            {
+                '$set': {
+                    'myLock': {
+                        'appName'     : 'tm_app',
+                        'pseudoRandom': ObjectId()
+                    }
+                }
+            }
+        )
+        # moshe = [c for c in cursor]
+        return cursor
+
+    def get_document_by_oid_old(self, collection: str, oid: str) -> pymongo.cursor.Cursor:
+        db = self._db
+        cursor = db[collection].find(
+            {'_id': ObjectId(oid)}
+        )
         return cursor
 
     def get_document_by_field(self, collection: str, field: str, value: str) -> pymongo.cursor.Cursor:
@@ -173,7 +191,7 @@ class MongoManager:
             quit()
         return success
 
-    def update_by_matched_value(self, collection: str, field: str, value: str, new_value: str) -> bool:
+    def update_many_by_matched_value(self, collection: str, field: str, value: str, new_value: str) -> bool:
         db = self._db
         cursor = db[collection].update_many(
             {field: value},
@@ -186,7 +204,7 @@ class MongoManager:
         logger.info('match: {} modified: {}'.format(cursor.matched_count,cursor.modified_count))
         return cursor.acknowledged
 
-    def update_one_document_by_field_value(self, collection: str, oid: str, field: str, new_value: str) -> bool:
+    def update_one_by_field_value(self, collection: str, oid: str, field: str, new_value: str) -> bool:
         db = self._db
         cursor = db[collection].update_one(
             {'_id': ObjectId(oid) },
@@ -198,7 +216,7 @@ class MongoManager:
         )
         return cursor.acknowledged
 
-    def update_by_query(self, collection: str, query: set) -> Any:
+    def update_one_by_query(self, collection: str, query: set) -> Any:
         db = self._db
         cursor = db[collection].update_one(query)
         return cursor
@@ -346,7 +364,7 @@ class MongoManager:
         ##########
         ##########
         ##########
-        search_query = {'$text': {'$search': 'T_01'}}
+        # search_query = {'$text': {'$search': 'T_01'}}
         ##########
         ##########
         ##########
