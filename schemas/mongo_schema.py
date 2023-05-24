@@ -1,3 +1,4 @@
+import os
 import re
 import subprocess
 import codecs
@@ -27,6 +28,9 @@ today = datetime.today()
 dt_date = datetime.now()
 dt_date = pd.to_datetime(dt_date - pd.DateOffset(months=1)) + pd.offsets.MonthEnd()
 dt_date = dt_date.strftime('%Y-%m-%d')
+
+MONGODB       = os.environ['MONGODB']
+MONGODB_ATLAS = os.environ['MONGODB_ATLAS']
 
 root      = pathlib.Path(__file__).parent.parent
 data_path = root.joinpath('resources', 'data')
@@ -86,8 +90,9 @@ class MongoManager:
         return logger
 
     def connect(self):
-        logger.info ('MongoDB : Start Connection...')
-        self._client = MongoClient ('mongodb://127.0.0.1:27017/', serverSelectionTimeoutMS=1000)
+        logger.info (f'MongoDB : Start Connection...{MONGODB}')
+        # self._client = MongoClient (MONGODB_ATLAS, tlsCAFile=certifi.where())
+        self._client = MongoClient (MONGODB, serverSelectionTimeoutMS=1000)
         moshe = self._client["Task"].list_collections()
         moshe = [c for c in moshe]
         print(f'\tnumber of collections: {len(moshe)}')
@@ -364,7 +369,7 @@ class MongoManager:
         ##########
         ##########
         ##########
-        # search_query = {'$text': {'$search': 'T_01'}}
+        search_query = {'$text': {'$search': 'T_01'}}
         ##########
         ##########
         ##########
