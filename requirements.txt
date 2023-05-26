@@ -13,4 +13,5 @@ pydantic[email]
 email-validator
 certifi
 gunicorn
+dash_ag_grid
 

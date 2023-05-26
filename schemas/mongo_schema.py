@@ -30,7 +30,7 @@ dt_date = pd.to_datetime(dt_date - pd.DateOffset(months=1)) + pd.offsets.MonthEn
 dt_date = dt_date.strftime('%Y-%m-%d')
 
 MONGODB       = os.environ['MONGODB']
-MONGODB_ATLAS = os.environ['MONGODB_ATLAS']
+# MONGODB_ATLAS = os.environ['MONGODB_ATLAS']
 
 root      = pathlib.Path(__file__).parent.parent
 data_path = root.joinpath('resources', 'data')

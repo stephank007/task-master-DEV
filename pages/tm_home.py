@@ -24,6 +24,18 @@ dash.register_page(
     name='Home Page',
     path='/home'
 )
+forward = html.Span(
+    [
+        html.I(className='d-inline-flex fas fa-forward'),
+        html.Div('forward', className='d-inline-flex px-2')
+    ],
+)
+backward = html.Span(
+    [
+        html.Div('backward', className='d-inline-flex px-2'),
+        html.I(className='d-inline-flex fas fa-backward'),
+    ]
+)
 
 ban      = '<i class="fas fa-ban     text-mute    mt-3 d-flex flex-row justify-content-center"></i>'
 progress = '<i class="fas fa-running text-body    mt-3 d-flex flex-row justify-content-center"></i>'
@@ -725,13 +737,16 @@ def layout():
                     html.Div(
                         [
                             dbc.Button(
+                                children=forward,
                                 id='page-next', type='submit', color='primary',
-                                className='fa-solid fa-forward g-2 m-2'
+                                className='ms-2'
+                                # className='fa-solid fa-forward g-2 m-2'
                             ),
                             dbc.Tooltip('next page', target='page-next', placement='bottom'),
                             dbc.Button(
+                                children=backward,
                                 id='page-prev', type='submit', color='primary',
-                                className='fa-solid fa-backward g-2 m-2'
+                                # className='fa-solid fa-backward g-2 m-2'
                             ),
                             dbc.Tooltip('previous page', target='page-prev', placement='bottom'),
                         ]
