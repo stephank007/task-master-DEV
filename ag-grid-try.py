@@ -10,6 +10,8 @@ from bson import ObjectId
 
 db = MongoManager('Task').get_db()
 
+task_db = MongoManager('Task')
+
 cursor = db.tasks.aggregate(
     [
         {
@@ -34,6 +36,31 @@ cursor = db.tasks.aggregate(
 )
 record = [c for c in cursor][0]
 df = pd.DataFrame(record.get('test_steps'))
+
+def get_testrun_data(test_plan_oid: ObjectId):
+    query = [
+        {
+            '$match': {
+                'mtp_object.test_plan': {
+                    '$elemMatch': {'test_name': 'TID_01'}
+                }
+            }
+        },
+        {
+            '$unwind': '$mtp_object.test_plan'
+        },
+        {
+            '$match': {
+                'mtp_object.test_plan.test_name': 'TID_01'
+            }
+        },
+        {
+            '$replaceWith': '$mtp_object.test_plan'
+        }
+    ]
+    return task_db.aggregate_query(collection='tasks', query=query)
+
+df = pd.DataFrame(get_testrun_data(test_plan_oid=None)[0].get('test_steps'))
 
 df['step_oid'] = df['step_oid'].astype(str)
 df['test_oid'] = df['test_oid'].astype(str)
@@ -77,9 +104,9 @@ columnDefs = [
         "field": "subject",
         'width': 120,
         'cellStyle': {
-            'direction': 'rtl',
-            # 'background-color': 'midnightblue',
-            # 'color'           : 'white'
+            'direction'  : 'rtl',
+            'white-space': 'normal',
+            'word-break' : 'break-word'
         }
     },
     {
@@ -89,6 +116,8 @@ columnDefs = [
         'cellStyle': {
             'textAlign': 'right',
             'direction': 'rtl',
+            'white-space': 'normal',
+            'word-break': 'break-word'
         }
     },
     {
@@ -98,6 +127,8 @@ columnDefs = [
         'cellStyle': {
             'textAlign': 'right',
             'direction': 'rtl',
+            'white-space': 'normal',
+            'word-break': 'break-word'
         }
     },
     {
@@ -117,70 +148,56 @@ columnDefs = [
         "editable": True,
         "cellEditorPopup": True,
         "cellEditor": "agLargeTextCellEditor",
+        'cellStyle': {
+            'textAlign': 'right',
+            'direction': 'rtl',
+            'white-space': 'normal',
+            'word-break': 'break-word'
+        }
     },
     {
-        "headerName": "Comments",
+        "headerName": "הערות",
         "field": "comments",
         'width': 200,
         "editable": True,
         "cellEditorPopup": True,
         "cellEditor": "agLargeTextCellEditor",
+        'cellStyle': {
+            'textAlign'  : 'center',
+            'direction'  : 'rtl',
+            'white-space': 'normal',
+            'word-break' : 'break-word'
+        }
     }
 ]
 
-cellStyle = {
+cell_conditional_style = {
     "styleConditions": [
-        {
-            "condition": "params.value == 'בוצע'",
-            "style": {"backgroundColor": "#196A4E", "color": "white"},
-        },
-        {
-            "condition": "params.value == 'תקול'",
-            "style": {"backgroundColor": "#800000", "color": "white"},
-        },
-        {
-            "condition": "params.value == 'בריצה'",
-            "style": {"backgroundColor": "#d2e034", "color": "black"},
-        },
-        {
-            "condition": "params.value == 'טרם החל'",
-            "style": {"backgroundColor": "dark", "color": "white"},
-        },
-        {
-            "condition": "params.colDef.headerName == 'Comments'",
-            "style": {
-                # "backgroundColor": "#444",
-                'textAlign': 'center'
-
-            },
-        },
-        {
-            "condition": "params.colDef.headerName == 'Bug Report'",
-            "style": {
-                # "backgroundColor": "#444",
-                'textAlign': 'center'
-
-            },
-        },
-
+        {"condition": "params.value == 'בוצע'"   , "style": {"backgroundColor": "#196A4E", "color": "white"}},
+        {"condition": "params.value == 'תקול'"   , "style": {"backgroundColor": "#800000", "color": "white"}},
+        {"condition": "params.value == 'בריצה'"  , "style": {"backgroundColor": "#d2e034", "color": "black"}},
+        {"condition": "params.value == 'טרם החל'", "style": {"backgroundColor": "dark"   , "color": "white"}},
     ]
 }
 
 defaultColDef = {
     # "filter"        : True,
-    "resizable"     : True,
-    "sortable"      : True,
-    "editable"      : False,
     # "floatingFilter": True,
-    "minWidth"      : 20,
-    'wrapText'      : True,
-    'autoHeight'    : True,
-    "cellStyle"     : cellStyle,
+    "resizable"       : True,
+    "sortable"        : True,
+    "editable"        : False,
+    "minWidth"        : 20,
+    'wrapText'        : True,
+    'autoHeight'      : True,
+    'wrapHeaderText'  : True,
+    'autoHeaderHeight': True,
+    "cellStyle"       : cell_conditional_style,
 }
 
 grid = dag.AgGrid(
     id="testrun-grid",
-    className="ag-theme-alpine-dark",
+    # className="ag-theme-alpine-dark",
+    className="ag-theme-alpine headers1",
     columnDefs=columnDefs,
     rowData=df.to_dict("records"),
     columnSize="sizeToFit",
@@ -190,6 +207,9 @@ grid = dag.AgGrid(
         'enableRtl'          : True,
         "rowSelection"       : "single",
     },
+    style={
+        'height': '100%'
+    }
 )
 
 header = html.Div("My Portfolio", className="h2 p-2 text-white bg-primary text-center")
@@ -202,7 +222,10 @@ app.layout = dbc.Container(
                 header,
                 dbc.Row(
                     dbc.Col(
-                        grid,
+                        html.Div(
+                            grid,
+                            style={'height': 820}
+                        ),
                         className="py-4",
                     )
                 ),
@@ -217,7 +240,7 @@ app.layout = dbc.Container(
     Input("testrun-grid", "selectedRows"    ),
     State("testrun-grid", "rowData"         ),
 )
-def update_portfolio_stats(_, row, data):
+def update_testrun_execution(_, row, data):
     # print(ctx.triggered_id)
     if _ is None:
         return dash.no_update
@@ -238,7 +261,8 @@ def update_portfolio_stats(_, row, data):
         array_filters=[
             {'plan.test_oid': test_oid},
             {'step.step_oid': step_oid}
-        ]
+        ],
+        upsert=True
     )
     print(f'matched: {result.matched_count} modified: {result.modified_count}')
 

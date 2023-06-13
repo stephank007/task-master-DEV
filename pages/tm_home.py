@@ -702,6 +702,28 @@ def testrun_status(child_status: list) -> Status:
     status_key = [i for i, x in enumerate(t) if x]
     return Status.P_11 if not status_key else my_map[status_key[0]]
 
+def get_testrun_data(test_plan_oid: ObjectId):
+    query = [
+        {
+            '$match': {
+                'mtp_object.test_plan': {
+                    '$elemMatch': {'test_oid': test_plan_oid}
+                }
+            }
+        },
+        {
+            '$unwind': '$mtp_object.test_plan'
+        },
+        {
+            '$match': {
+                'mtp_object.test_plan.test_oid': test_plan_oid
+            }
+        },
+        {
+            '$replaceWith': '$mtp_object.test_plan'
+        }
+    ]
+    return task_db.aggregate_query(collection='tasks', query=query)
 ######################################################################################################################
 def layout():
     return dbc.Container([
@@ -1076,22 +1098,26 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
         stories = []
         for plan in test_plans:
             story = {
-                'mtp_id'   : plan.get('mtp_id'   ),
+                'mtp_oid'  : plan.get('mtp_oid'  ),
+                'test_oid' : plan.get('test_oid' ),
                 'test_name': plan.get('test_name'),
                 'story'    : plan.get('story'    ),
                 'prereq'   : plan.get('prereq'   ),
                 'tester'   : plan.get('tester'   ),
                 'status'   : plan.get('status'   ),
-                'symbol'   : plan.get('symbol'   )
             }
             stories.append(story)
 
-        dff       = pd.DataFrame(stories)
-        t_columns = [{'name': i, 'id': i} for i in dff.columns]
-        t_columns[6].update({'presentation': 'markdown', 'editable': True})
+        dff = pd.DataFrame(stories)
+        # dff['mtp_oid' ] = dff['mtp_oid' ].apply(lambda x: str(x))
+        # dff['test_oid'] = dff['test_oid'].apply(lambda x: str(x))
 
+        t_columns = [{'name': i, 'id': i} for i in dff.columns]
         dff['id'] = dff.index
-        return html.Div(
+
+        print(f'render_test_plan/dtypes: {dff.dtypes}')
+
+        jacob =  html.Div(
             dt.DataTable(
                 id='test-plans',
                 data=dff.to_dict('records'),
@@ -1102,9 +1128,9 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
                 page_action='native',
                 style_header=header_style,
                 page_current=0,
-                hidden_columns=['id', 'mtp_id'],
+                hidden_columns=['id', 'mtp_oid', 'test_oid'],
                 row_selectable='single',
-                markdown_options={"html": True},
+                # markdown_options={"html": True},
                 style_cell_conditional=testplan_formatting,
                 style_data_conditional=test_tables_style_data_conditional,
                 style_header_conditional=test_tables_style_header_conditional,
@@ -1112,8 +1138,9 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
             dir='ltr',
             lang='he',
         )
+        return jacob
 
-    def test_document_layout(db_document: dict, symbol: str) -> list:
+    def test_plan_layout(db_document: dict, symbol: str) -> list:
         top_row, info_row, t_name = issue_document_layout(
             db_document=db_document,
             symbol=symbol
@@ -1129,6 +1156,16 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
         systems    = db_document.get('mtp_object').get('systems'    )
         test_plans = db_document.get('mtp_object').get('test_plan'  )
 
+        # i = 0
+        for i, plan in enumerate(test_plans):
+            test_plans[i].update(
+                {
+                    'mtp_oid' : str(test_plans[i].get('mtp_oid' )),
+                    'test_oid': str(test_plans[i].get('test_oid')),
+                }
+            )
+            # i += 1
+
         first_row = dbc.Row(
             [
                 dbc.Col(
@@ -1139,7 +1176,6 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
                     dbc.Alert(f'MTP ID: {mtp_id}'   , color='secondary', class_name='fs-3 text-center'),
                     class_name='col-6 m-0 g-0'
                 )
-
             ]
         )
         second_row = dbc.Row(
@@ -1197,6 +1233,10 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
                 html.Br()
             ]
         )
+        # top_row = None
+        # info_row = None
+        # t_name = None
+        test_plans = None
         return top_row, info_row, t_name, m_layout, test_plans
 
     def issue_document_layout(db_document: dict, symbol: str) -> list:
@@ -1271,7 +1311,7 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
                 )
             case 'test':
                 doctype_symbol = 'fas fa-flask fa-lg text-info'
-                document_detail_row, record_info, owner_name, mtp_layout, t_plans = test_document_layout(
+                document_detail_row, record_info, owner_name, mtp_layout, t_plans = test_plan_layout(
                     db_document=db_record,
                     symbol=doctype_symbol
                 )
@@ -1448,16 +1488,17 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
         return dash.no_update
     else:
         row = rows[selected_row[0]]
-
-        test_name  = row.get('test_name')
-        test_plans = pd.DataFrame(selected_test_plans)
-        t_steps    = pd.DataFrame(test_plans[test_plans['test_name'] == test_name]['test_steps'].values[0])
-        t_steps    = t_steps[['mtp_id', 'test_name', 'step', 'subject', 'exp_sap', 'exp_wms', 'status', 'symbol']]
+        test_oid = ObjectId(row.get('test_oid'))
+        t_steps = pd.DataFrame(get_testrun_data(test_plan_oid=test_oid)[0].get('test_steps'))
+        t_steps    = t_steps[['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'exp_sap', 'exp_wms', 'status']]
         t_columns  = [{'name': i, 'id': i, 'deletable': False} for i in t_steps.columns]
 
         t_columns[6].update({'presentation': 'dropdown', 'editable': True})
         t_columns[7].update({'presentation': 'markdown', 'editable': True})
 
+        t_steps['mtp_oid' ] = t_steps['mtp_oid' ].astype(str)
+        t_steps['test_oid'] = t_steps['test_oid'].astype(str)
+        t_steps['step_oid'] = t_steps['step_oid'].astype(str)
         return html.Div(
             dt.DataTable(
                 id='steps-table',
@@ -1467,7 +1508,7 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
                 dropdown=testplan_dropdown,
                 style_cell=test_tables_style_cell,
                 style_header=header_style,
-                hidden_columns=['mtp_id', 'test_name'],
+                hidden_columns=['mtp_oid', 'test_oid', 'step_oid'],
                 markdown_options={"html": True},
                 style_cell_conditional=test_steps_formatting,
                 style_data_conditional=test_tables_style_data_conditional,
@@ -1477,6 +1518,9 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
             lang='he'
         ), disabled
 
+
+################################### ***END MTP Callbacks *** ##########################################################
+"""
 @callback(
     Output('diff-store' , 'data'),
     Output('steps-table', 'data'),
@@ -1542,8 +1586,15 @@ def testrun_diff_update_manager(
 
     records = dff.to_dict('records')
     return diff_store_data, records
-################################### ***END MTP Callbacks *** ##########################################################
-"""
+
+
+
+
+
+
+
+
+
     # change_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     ctx_msg = json.dumps({
         'states'   : ctx.states,

@@ -238,6 +238,11 @@ class MongoManager:
         [data.append(c) for c in cursor]
         return data
 
+    def aggregate_query(self, collection: str, query: List) -> List:
+        db = self._db
+        cursor = db[collection].aggregate(query)
+        return [c for c in cursor]
+
     @log_decorator
     def update_task_document(self, u_data: dict):
         def value_from_validation_error(d: Dict, error: ValidationError):

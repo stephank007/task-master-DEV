@@ -1,0 +1,169 @@
+/* to allow datatable dropdown to show */
+
+.ag-theme-alpine.headers1 {
+    --ag-header-height: 30px;
+    --ag-header-foreground-color: white;
+    --ag-header-background-color: black;
+    --ag-header-cell-hover-background-color: rgb(80, 40, 140);
+    --ag-header-cell-moving-background-color: rgb(80, 40, 140);
+
+    --ag-header-column-separator-display: block;
+    --ag-header-column-separator-height: 100%;
+    --ag-header-column-separator-width: 2px;
+    --ag-header-column-separator-color: purple;
+
+    --ag-header-column-resize-handle-display: block;
+    --ag-header-column-resize-handle-height: 25%;
+    --ag-header-column-resize-handle-width: 5px;
+    --ag-header-column-resize-handle-color: orange;
+}
+.ag-theme-alpine .ag-header {
+    font-family: cursive;
+    text-align : center;
+}
+.ag-theme-alpine .ag-header-group-cell {
+    font-weight: normal;
+    font-size: 22px;
+}
+.ag-theme-alpine .ag-header-cell {
+    font-size: 18px;
+}
+
+
+.blue-color {
+    color:blue;
+    text-align: right;
+    direction : rtl;
+}
+
+.green-color {
+    color:green;
+}
+
+.teal-color {
+    color:teal;
+}
+
+.yellow-color {
+color:yellow;
+}
+
+.red-color {
+    color:red;
+}
+
+.white-color {
+    color: whitesmoke;
+}
+
+.alert {
+    margin-bottom: 0;
+}
+.Select-value {
+    /*background: whitesmoke;
+    color: #9b9b99; */
+    background: #f0e9ef;
+    color: midnightblue;
+    border: 1px solid #f47c3c;
+}
+
+.Select-arrow-zone {
+    background: #1b8dbb;
+    border: 1px solid #f47c3c;
+}
+.Select-placeholder {
+    background: whitesmoke;
+    color: #9b9b99;
+    /* border: 1px solid #f47c3c; */
+}
+.btn-sm,.btn-group-sm > .btn {
+    padding-right: 0px;
+    font-size: 1.875rem;
+    border-radius: 0.2rem;
+    alignment: right;
+}
+
+.Select-menu-outer {
+    display: block !important;
+    font-size: 12px;
+    --accent: #1EAEDB;
+}
+.VirtualizedSelectOption {
+    display: inline-block;
+    text-align: center;
+}
+/* control the style of the dropdown */
+ .Select-arrow {
+     --accent: #1EAEDB;
+ }
+
+.dash-delete-cell {
+	--accent : #d9534f;
+    font-size: 15rem;
+    text-align: left;
+}
+
+.column-header--edit{
+	--accent : #c00000;
+    font-size: 15rem;
+    text-align: left;
+}
+
+.column-header--delete{
+	--accent : #d9534f;
+    font-size: 15rem;
+    text-align: left;
+}
+/* END control the style of the dropdown */
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner.dash-fill-width .cell-0-1, .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner.dash-fill-width .cell-1-1 {
+    flex: 1 0 auto;
+    /* background-color: rgba(255, 65, 54, 0.5)!important;
+    padding: 2px;
+    user-select: none !important;
+    font-size: 1.8rem !important;
+    text-align: center !important;
+    cursor: pointer !important;
+    color: #2ff!important;
+     */
+}
+
+/*
+.dash-select-cell input[type=radio] {
+    appearance: none;
+    cursor: pointer;
+    width: 25px;
+    height: 25px;
+    background-repeat: no-repeat;
+    background-position: center center;
+}
+ */
+
+.dash-table-container .dash-spreadsheet-container input[type="radio"] {
+    margin: initial;
+    line-height: initial;
+    box-sizing: initial;
+    padding: initial;
+    background-color: #f5f5f5 !important;
+    color: #41da71 !important;
+    cursor: pointer !important;
+    width: 1.20rem;
+    height: 1.20rem;
+}
+
+.export {
+    color: #f8f5f0;
+    background-color: #325d88;
+    display: inline-block;
+    font-weight: 400;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: center;
+    user-select: none;
+    border: 2px solid #20c997;
+    /*padding: .375rem .15rem; */
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: .25rem;
+    transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+}
