@@ -1013,7 +1013,7 @@ def documents_portal(previous_dropdowns, filters_query, clicked_chart, b_next, b
     Input ('task-table'         , 'selected_rows'),
     State ('task-table'         , 'data'         ),
 )
-def document_update_portal(switch_pane, selected_row, rows):  # render the update pane only
+def document_master_portal(switch_pane, selected_row, rows):  # render the update pane only
     """
     her we manage the sorts of doctype update flow. main focus is given to test flow
     :param switch_pane:
@@ -1080,7 +1080,7 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
         )
         return note_layout
 
-    def render_table(records: list) -> dt.DataTable:
+    def simple_table_renderer(records: list) -> dt.DataTable:
         dff = pd.DataFrame(records)
 
         return dt.DataTable(
@@ -1094,7 +1094,7 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
             css=[{'selector': '.show-hide', 'rule': 'display: none'}]
         )
 
-    def render_testplans_table(test_plans: list) -> dt.DataTable:
+    def testplan_table_renderer(test_plans: list) -> dt.DataTable:
         stories = []
         for plan in test_plans:
             story = {
@@ -1140,7 +1140,7 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
         )
         return jacob
 
-    def test_plan_layout(db_document: dict, symbol: str) -> list:
+    def testplan_layout(db_document: dict, symbol: str) -> list:
         top_row, info_row, t_name = issue_document_layout(
             db_document=db_document,
             symbol=symbol
@@ -1156,7 +1156,6 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
         systems    = db_document.get('mtp_object').get('systems'    )
         test_plans = db_document.get('mtp_object').get('test_plan'  )
 
-        # i = 0
         for i, plan in enumerate(test_plans):
             test_plans[i].update(
                 {
@@ -1164,7 +1163,6 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
                     'test_oid': str(test_plans[i].get('test_oid')),
                 }
             )
-            # i += 1
 
         first_row = dbc.Row(
             [
@@ -1179,26 +1177,57 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
             ]
         )
         second_row = dbc.Row(
+            dbc.Col(
+                html.Div(simple_table_renderer(purpose)),
+                class_name='col-4 mt-0',
+                style=row_style
+            ),
+            justify='center'
+        )
+        third_row = dbc.Row(
             [
+                dbc.Col(class_name='col-2'),
                 dbc.Col(
-                    html.Div(render_testplans_table(test_plans=test_plans)),
+                    html.Div(
+                        [
+                            dbc.Alert('תכנית הבדיקות', class_name='fs-3'),
+                            testplan_table_renderer(test_plans=test_plans)
+                        ]
+                    ),
                     class_name='col-8 mt-0',
                     style=row_style
                 ),
                 dbc.Col(
-                    html.Div(render_table(purpose)),
-                    class_name='col-4 mt-0',
-                    style=row_style
+                    dbc.Button(
+                        "דיווח תקלה",
+                        id='bugreport-button',
+                        size="lg",
+                        class_name="h-100 me-1 mt-1",
+                        color='dark',
+                        disabled=True,
+                    ),
+                    class_name='col-1'
                 ),
+                dbc.Col(
+                    dbc.Button(
+                        "הצג תיעוד",
+                        id='documentation-button',
+                        size="lg",
+                        class_name="h-100 me-1 mt-1",
+                        color='dark',
+                        disabled=True,
+                    ),
+                    class_name='col-1'
+                )
             ],
             justify='center',
             class_name='mt-1'
         )
-        third_row = dbc.Row(
+        fourth_row = dbc.Row(
             [
+                dbc.Alert('הרצת הבדיקה', class_name='fs-3 text-center'),
                 dbc.Col(
                     id='steps-table-div',
-                    class_name='col-8'
                 ),
                 dbc.Col(
                     dbc.Button(
@@ -1210,32 +1239,23 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
                         disabled=True,
                     ),
                     class_name='col-1'
-                ),
-                dbc.Col(
-                    html.Div(
-                        [
-                            dbc.Row(html.Div(render_table(bp_rns  ))),
-                            dbc.Row(html.Div(render_table(chapters))),
-                            dbc.Row(html.Div(render_table(systems ))),
-                        ]
-                    ),
-                    class_name='col-3',
-                    style=row_style
-                ),
+                )
             ],
-            class_name='mt-1'
+            class_name='mt-1',
+            justify='center'
         )
         m_layout = html.Div(
             [
                 first_row ,
                 second_row,
                 third_row ,
-                html.Br()
+                fourth_row,
+                html.Div(style={
+                        'height': 200
+                    }
+                )
             ]
         )
-        # top_row = None
-        # info_row = None
-        # t_name = None
         test_plans = None
         return top_row, info_row, t_name, m_layout, test_plans
 
@@ -1311,7 +1331,7 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
                 )
             case 'test':
                 doctype_symbol = 'fas fa-flask fa-lg text-info'
-                document_detail_row, record_info, owner_name, mtp_layout, t_plans = test_plan_layout(
+                document_detail_row, record_info, owner_name, mtp_layout, t_plans = testplan_layout(
                     db_document=db_record,
                     symbol=doctype_symbol
                 )
@@ -1338,7 +1358,7 @@ def document_update_portal(switch_pane, selected_row, rows):  # render the updat
     State ('owner-notes'     , 'data'         ),
     State ('owner-date-table', 'data'         ),
 )
-def owner_notes_organizer(selected_row_id, note_rows, date_rows):
+def owner_notes_renderer(selected_row_id, note_rows, date_rows):
     change_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     h1 = 'תאריך עדכון'
     h2 = 'הערת אחראי'
@@ -1346,8 +1366,6 @@ def owner_notes_organizer(selected_row_id, note_rows, date_rows):
     def select_note_lines(row_id: int):
         selected_date = date_rows[row_id][h1]
         record_db = task_db.get_document_by_oid(collection='tasks', oid=oid)
-        # owner_notes = [note for note in record_db][0].get('owner_notes')
-        # owner_notes = [note for note in record_db].get('owner_notes')
         owner_notes = record_db.get('owner_notes')
         owner_notes = [note for note in owner_notes]
 
@@ -1521,6 +1539,20 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
 
 ################################### ***END MTP Callbacks *** ##########################################################
 """
+                dbc.Col(
+                    html.Div(
+                        [
+                            dbc.Row(html.Div(simple_table_renderer(bp_rns  ))),
+                            dbc.Row(html.Div(simple_table_renderer(chapters))),
+                            dbc.Row(html.Div(simple_table_renderer(systems ))),
+                        ]
+                    ),
+                    class_name='col-3',
+                    style=row_style
+                )
+
+
+
 @callback(
     Output('diff-store' , 'data'),
     Output('steps-table', 'data'),

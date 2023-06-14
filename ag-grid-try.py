@@ -100,7 +100,7 @@ columnDefs = [
         }
     },
     {
-        "headerName": "Description",
+        "headerName": "פעולה",
         "field": "subject",
         'width': 120,
         'cellStyle': {
@@ -110,7 +110,7 @@ columnDefs = [
         }
     },
     {
-        "headerName": "SAP Exp. Result",
+        "headerName": "סאפ - תוצאה רצויה",
         "field": "exp_sap",
         'width': 120,
         'cellStyle': {
@@ -121,7 +121,7 @@ columnDefs = [
         }
     },
     {
-        "headerName": "WMS Exp. Result",
+        "headerName": "תוצאה רצויה - WMS",
         "field": "exp_wms",
         'width': 120,
         'cellStyle': {
@@ -132,7 +132,7 @@ columnDefs = [
         }
     },
     {
-        "headerName": "Status",
+        "headerName": "סטאטוס",
         "field": "status",
         'width': 75,
         "editable": True,
@@ -142,7 +142,7 @@ columnDefs = [
         },
     },
     {
-        "headerName": "Bug Report",
+        "headerName": "תיאור התקלה",
         "field": "bug_report",
         'width': 200,
         "editable": True,
@@ -156,7 +156,7 @@ columnDefs = [
         }
     },
     {
-        "headerName": "הערות",
+        "headerName": "הערות נוספות",
         "field": "comments",
         'width': 200,
         "editable": True,
@@ -207,9 +207,7 @@ grid = dag.AgGrid(
         'enableRtl'          : True,
         "rowSelection"       : "single",
     },
-    style={
-        'height': '100%'
-    }
+    style={'height': '100%'}
 )
 
 header = html.Div("My Portfolio", className="h2 p-2 text-white bg-primary text-center")

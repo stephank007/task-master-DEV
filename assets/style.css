@@ -2,8 +2,8 @@
 
 .ag-theme-alpine.headers1 {
     --ag-header-height: 30px;
-    --ag-header-foreground-color: white;
-    --ag-header-background-color: black;
+    --ag-header-foreground-color: whitesmoke;
+    --ag-header-background-color: #212529;
     --ag-header-cell-hover-background-color: rgb(80, 40, 140);
     --ag-header-cell-moving-background-color: rgb(80, 40, 140);
 
