@@ -1,4 +1,5 @@
 import dash
+import json
 import dash_ag_grid as dag
 from dash import Dash, html, dcc, Input, Output, State, ctx
 import dash_bootstrap_components as dbc
@@ -8,34 +9,12 @@ from schemas.fields import Status
 from devtools import debug
 from bson import ObjectId
 
-db = MongoManager('Task').get_db()
+clouds = '<i class="fa fa-cloud d-flex flex-row justify-content-center" style="color: grey;"></i>'
+rain   = '<i class="fa fa-cloud-rain d-flex flex-row justify-content-center"></i>'
+upload = '<i class="fas fa-upload d-flex flex-row justify-content-center" style="color: gold;"></i>'
 
 task_db = MongoManager('Task')
-
-cursor = db.tasks.aggregate(
-    [
-        {
-            '$match': {
-                'mtp_object.test_plan': {
-                    '$elemMatch': {'test_name': 'TID_01'}
-                }
-            }
-        },
-        {
-            '$unwind': '$mtp_object.test_plan'
-        },
-        {
-            '$match': {
-                'mtp_object.test_plan.test_name': 'TID_01'
-            }
-        },
-        {
-            '$replaceWith': '$mtp_object.test_plan'
-        }
-    ]
-)
-record = [c for c in cursor][0]
-df = pd.DataFrame(record.get('test_steps'))
+db      = task_db.get_db()
 
 def get_testrun_data(test_plan_oid: ObjectId):
     query = [
@@ -65,6 +44,7 @@ df = pd.DataFrame(get_testrun_data(test_plan_oid=None)[0].get('test_steps'))
 df['step_oid'] = df['step_oid'].astype(str)
 df['test_oid'] = df['test_oid'].astype(str)
 df['mtp_oid' ] = df['mtp_oid' ].astype(str)
+df['bug'     ] = 'Bug'
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
 
@@ -72,21 +52,18 @@ columnDefs = [
     {
         'headerName': "mtp_oid",
         'field': "mtp",
-        'width': 25,
         'hide': True,
         'suppressToolPanel': True
     },
     {
         'headerName': "test_oid",
         'field': "test_oid",
-        'width': 25,
         'hide': True,
         'suppressToolPanel': True
     },
     {
         'headerName'       : "step_oid",
         'field'            : "step_oid",
-        'width'            : 25,
         'hide'             : True,
         'suppressToolPanel': True
     },
@@ -110,8 +87,8 @@ columnDefs = [
         }
     },
     {
-        "headerName": "סאפ - תוצאה רצויה",
-        "field": "exp_sap",
+        "headerName": "תוצאה רצויה",
+        "field": "expected",
         'width': 120,
         'cellStyle': {
             'textAlign': 'right',
@@ -121,9 +98,12 @@ columnDefs = [
         }
     },
     {
-        "headerName": "תוצאה רצויה - WMS",
-        "field": "exp_wms",
-        'width': 120,
+        "headerName": "תוצאה שנתקבלה",
+        "field": "actual_result",
+        'width': 200,
+        "editable": True,
+        "cellEditorPopup": True,
+        "cellEditor": "agLargeTextCellEditor",
         'cellStyle': {
             'textAlign': 'right',
             'direction': 'rtl',
@@ -142,21 +122,7 @@ columnDefs = [
         },
     },
     {
-        "headerName": "תיאור התקלה",
-        "field": "bug_report",
-        'width': 200,
-        "editable": True,
-        "cellEditorPopup": True,
-        "cellEditor": "agLargeTextCellEditor",
-        'cellStyle': {
-            'textAlign': 'right',
-            'direction': 'rtl',
-            'white-space': 'normal',
-            'word-break': 'break-word'
-        }
-    },
-    {
-        "headerName": "הערות נוספות",
+        "headerName": "הערות",
         "field": "comments",
         'width': 200,
         "editable": True,
@@ -168,6 +134,13 @@ columnDefs = [
             'white-space': 'normal',
             'word-break' : 'break-word'
         }
+    },
+    {
+        "field"       : "bug",
+        'width'       : 50,
+        'align'       : 'center',
+        "cellRenderer": "DBC_Button_Simple",
+        "cellRendererParams": {"color": "success"},
     }
 ]
 
@@ -197,20 +170,24 @@ defaultColDef = {
 grid = dag.AgGrid(
     id="testrun-grid",
     # className="ag-theme-alpine-dark",
-    className="ag-theme-alpine headers1",
+    # className="ag-theme-alpine headers1",
+    # columnSize="autoSize",
+    columnSize="sizeToFit",
+    className="ag-theme-balham headers1",
     columnDefs=columnDefs,
     rowData=df.to_dict("records"),
-    columnSize="sizeToFit",
     defaultColDef=defaultColDef,
     dashGridOptions={
         "undoRedoCellEditing": True,
         'enableRtl'          : True,
         "rowSelection"       : "single",
+        "rowHeight"          : 48,
+        'verticalAlign'      : 'middle'
     },
     style={'height': '100%'}
 )
 
-header = html.Div("My Portfolio", className="h2 p-2 text-white bg-primary text-center")
+header = html.Div("הרצת בדיקה", className="h2 p-2 text-white bg-primary text-center")
 
 app.layout = dbc.Container(
     [
@@ -227,6 +204,7 @@ app.layout = dbc.Container(
                         className="py-4",
                     )
                 ),
+                html.Div(id="dbc-btn-simple-value-changed"),
             ],
         )
     ],
@@ -266,5 +244,30 @@ def update_testrun_execution(_, row, data):
 
     return None
 
+@app.callback(
+    Output("dbc-btn-simple-value-changed", "children"),
+    Input("testrun-grid", "cellRendererData"),
+)
+def show_change(n):
+    return json.dumps(n)
+
 if __name__ == "__main__":
     app.run_server(debug=True, port=8050)
+
+
+"""
+    {
+        "headerName": "תיאור התקלה",
+        "field": "bug_report",
+        'width': 200,
+        "editable": True,
+        "cellEditorPopup": True,
+        "cellEditor": "agLargeTextCellEditor",
+        'cellStyle': {
+            'textAlign': 'right',
+            'direction': 'rtl',
+            'white-space': 'normal',
+            'word-break': 'break-word'
+        }
+    }
+"""

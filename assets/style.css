@@ -1,5 +1,7 @@
 /* to allow datatable dropdown to show */
 
+
+/* AG-GRID Themes */
 .ag-theme-alpine.headers1 {
     --ag-header-height: 30px;
     --ag-header-foreground-color: whitesmoke;
@@ -28,7 +30,36 @@
 .ag-theme-alpine .ag-header-cell {
     font-size: 18px;
 }
+/* balham */
+.ag-theme-balham.headers1 {
+    --ag-header-height: 30px;
+    --ag-header-foreground-color: whitesmoke;
+    --ag-header-background-color: #212529;
+    --ag-header-cell-hover-background-color: rgb(80, 40, 140);
+    --ag-header-cell-moving-background-color: rgb(80, 40, 140);
 
+    --ag-header-column-separator-display: block;
+    --ag-header-column-separator-height: 100%;
+    --ag-header-column-separator-width: 2px;
+    --ag-header-column-separator-color: purple;
+
+    --ag-header-column-resize-handle-display: block;
+    --ag-header-column-resize-handle-height: 25%;
+    --ag-header-column-resize-handle-width: 5px;
+    --ag-header-column-resize-handle-color: orange;
+}
+.ag-theme-balham .ag-header {
+    font-family: cursive;
+    text-align : center;
+}
+.ag-theme-balham .ag-header-group-cell {
+    font-weight: normal;
+    font-size: 22px;
+}
+.ag-theme-balham .ag-header-cell {
+    font-size: 18px;
+}
+/* END        AG-GRID Themes */
 
 .blue-color {
     color:blue;

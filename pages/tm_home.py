@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express       as px
 import schemas.mongo_schema as ms
 import dash_bootstrap_components  as dbc
+import dash_ag_grid as dag
 from bson        import ObjectId
 from dash        import html, dcc, callback, Input, Output, State, ctx
 from dash        import dash_table    as dt
@@ -326,6 +327,127 @@ columns = [
     {'name': 'מקור'   , 'id': 'source'    },
     {'name': 'תג״ב'   , 'id': 'due_date'  },
 ][::-1]
+############ AG-GRID ##################################################################################################
+columnDefs = [
+    {
+        'headerName': "mtp_oid",
+        'field': "mtp",
+        'hide': True,
+        'suppressToolPanel': True
+    },
+    {
+        'headerName': "test_oid",
+        'field': "test_oid",
+        'hide': True,
+        'suppressToolPanel': True
+    },
+    {
+        'headerName'       : "step_oid",
+        'field'            : "step_oid",
+        'hide'             : True,
+        'suppressToolPanel': True
+    },
+    {
+        "headerName": "#",
+        "field": "step",
+        'width': 40,
+        'type': 'centerAligned',
+        'cellStyle': {
+            'textAlign': 'center',
+        }
+    },
+    {
+        "headerName": "פעולה",
+        "field": "subject",
+        'width': 120,
+        'cellStyle': {
+            'direction'  : 'rtl',
+            'white-space': 'normal',
+            'word-break' : 'break-word'
+        }
+    },
+    {
+        "headerName": "תוצאה רצויה",
+        "field": "expected",
+        'width': 120,
+        'cellStyle': {
+            'textAlign': 'right',
+            'direction': 'rtl',
+            'white-space': 'normal',
+            'word-break': 'break-word'
+        }
+    },
+    {
+        "headerName": "תוצאה שנתקבלה",
+        "field": "actual_result",
+        'width': 200,
+        "editable": True,
+        "cellEditorPopup": True,
+        "cellEditor": "agLargeTextCellEditor",
+        'cellStyle': {
+            'textAlign': 'right',
+            'direction': 'rtl',
+            'white-space': 'normal',
+            'word-break': 'break-word'
+        }
+    },
+    {
+        "headerName": "סטאטוס",
+        "field": "status",
+        'width': 75,
+        "editable": True,
+        "cellEditor": "agSelectCellEditor",
+        "cellEditorParams": {
+            "values": [Status.P_10, Status.P_11, Status.P_12, Status.P_02],
+        },
+    },
+    {
+        "headerName": "הערות",
+        "field": "comments",
+        'width': 200,
+        "editable": True,
+        "cellEditorPopup": True,
+        "cellEditor": "agLargeTextCellEditor",
+        'cellStyle': {
+            'textAlign'  : 'center',
+            'direction'  : 'rtl',
+            'white-space': 'normal',
+            'word-break' : 'break-word'
+        }
+    },
+    {
+        "headerName": "דיווח תקלה",
+        "field"       : "bug",
+        'width'       : 50,
+        'align'       : 'center',
+        "cellRenderer": "DBC_Button_Simple",
+        "cellRendererParams": {"color": "success"},
+    }
+]
+
+cell_conditional_style = {
+    "styleConditions": [
+        {"condition": "params.value == 'בוצע'"   , "style": {"backgroundColor": "#196A4E", "color": "white"}},
+        {"condition": "params.value == 'תקול'"   , "style": {"backgroundColor": "#800000", "color": "white"}},
+        {"condition": "params.value == 'בריצה'"  , "style": {"backgroundColor": "#d2e034", "color": "black"}},
+        {"condition": "params.value == 'טרם החל'", "style": {"backgroundColor": "dark"   , "color": "white"}},
+    ]
+}
+
+defaultColDef = {
+    # "filter"        : True,
+    # "floatingFilter": True,
+    "resizable"       : True,
+    "sortable"        : True,
+    "editable"        : False,
+    "minWidth"        : 20,
+    'wrapText'        : True,
+    'autoHeight'      : True,
+    'wrapHeaderText'  : True,
+    'autoHeaderHeight': True,
+    "cellStyle"       : cell_conditional_style,
+}
+############ AG-GRID END ##############################################################################################
 
 datatable  = dt.DataTable(
     id='task-table',
@@ -1199,17 +1321,6 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
                 ),
                 dbc.Col(
                     dbc.Button(
-                        "דיווח תקלה",
-                        id='bugreport-button',
-                        size="lg",
-                        class_name="h-100 me-1 mt-1",
-                        color='dark',
-                        disabled=True,
-                    ),
-                    class_name='col-1'
-                ),
-                dbc.Col(
-                    dbc.Button(
                         "הצג תיעוד",
                         id='documentation-button',
                         size="lg",
@@ -1227,7 +1338,10 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
             [
                 dbc.Alert('הרצת הבדיקה', class_name='fs-3 text-center'),
                 dbc.Col(
-                    id='steps-table-div',
+                    html.Div(
+                        id='testrun-grid-div',
+                        style={'height': 820}
+                    ),
                 ),
                 dbc.Col(
                     dbc.Button(
@@ -1238,7 +1352,8 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
                         color='dark',
                         disabled=True,
                     ),
-                    class_name='col-1'
+                    class_name='col-1',
+                    style={'display': 'none'}
                 )
             ],
             class_name='mt-1',
@@ -1250,10 +1365,8 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
                 second_row,
                 third_row ,
                 fourth_row,
-                html.Div(style={
-                        'height': 200
-                    }
-                )
+                html.Div(id='testrun-value-changed'),
+                html.Div(style={'height': 200})
             ]
         )
         test_plans = None
@@ -1491,8 +1604,8 @@ def highlight_selected_row(selRows):
     ]
 
 @callback(
-    Output('steps-table-div', 'children'),
-    Output('testrun-button', 'disabled' ),
+    Output('testrun-grid-div', 'children'),
+    Output('testrun-button'  , 'disabled' ),
 
     Input('testrun-button', 'n_clicks'     ),
     Input('test-plans'    , 'selected_rows'),
@@ -1508,16 +1621,86 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
         row = rows[selected_row[0]]
         test_oid = ObjectId(row.get('test_oid'))
         t_steps = pd.DataFrame(get_testrun_data(test_plan_oid=test_oid)[0].get('test_steps'))
-        t_steps    = t_steps[['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'exp_sap', 'exp_wms', 'status']]
-        t_columns  = [{'name': i, 'id': i, 'deletable': False} for i in t_steps.columns]
-
-        t_columns[6].update({'presentation': 'dropdown', 'editable': True})
-        t_columns[7].update({'presentation': 'markdown', 'editable': True})
+        try:
+            t_steps    = t_steps[
+                ['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'expected', 'actual_result', 'status']
+            ]
+        except KeyError as ex:
+            t_steps    = t_steps[
+                ['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'expected', 'status']
+            ]
 
         t_steps['mtp_oid' ] = t_steps['mtp_oid' ].astype(str)
         t_steps['test_oid'] = t_steps['test_oid'].astype(str)
         t_steps['step_oid'] = t_steps['step_oid'].astype(str)
-        return html.Div(
+        t_steps['bug'] = 'Bug'
+        grid = dag.AgGrid(
+            id="testrun-grid",
+            # className="ag-theme-alpine-dark",
+            # className="ag-theme-alpine headers1",
+            # columnSize="autoSize",
+            columnSize="sizeToFit",
+            className="ag-theme-balham headers1",
+            columnDefs=columnDefs,
+            rowData=t_steps.to_dict("records"),
+            defaultColDef=defaultColDef,
+            dashGridOptions={
+                "undoRedoCellEditing": True,
+                'enableRtl': True,
+                "rowSelection": "single",
+                "rowHeight": 48,
+                'verticalAlign': 'middle'
+            },
+            style={'height': '100%'}
+        )
+
+        return grid, disabled
+
+@callback(
+    Output('moshe-id', 'data'                 ),
+
+    Input ('testrun-grid' , 'cellValueChanged'),
+    Input ('testrun-grid' , 'selectedRows'    ),
+    State ('testrun-grid' , 'rowData'         ),
+)
+def update_testrun_execution(_, row, data):
+    # print(ctx.triggered_id)
+    if _ is None:
+        return dash.no_update
+    step_oid  = ObjectId(_.get('data').get('step_oid'))
+    test_oid  = ObjectId(_.get('data').get('test_oid'))
+    mtp_oid   = ObjectId(_.get('data').get('mtp_oid' ))
+    old_value = _.get('old_value')
+    new_value = _.get('value'    )
+    col_name  = _.get('colId'    )
+
+    db = task_db.get_db()
+    result = db.tasks.update_one(
+        {'mtp_object.mtp_oid': mtp_oid},
+        {
+            "$set": {
+                f"mtp_object.test_plan.$[plan].test_steps.$[step].{col_name}": new_value
+            }
+        },
+        array_filters=[
+            {'plan.test_oid': test_oid},
+            {'step.step_oid': step_oid}
+        ],
+        upsert=True
+    )
+    print(f'matched: {result.matched_count} modified: {result.modified_count}')
+
+    return None
+
+@callback(
+    Output("testrun-value-changed", "children"),
+    Input("testrun-grid", "cellRendererData"),
+)
+def show_change(n):
+    return json.dumps(n)
+################################### ***END MTP Callbacks *** ##########################################################
+"""
+return html.Div(
             dt.DataTable(
                 id='steps-table',
                 data=t_steps.to_dict('records'),
@@ -1534,11 +1717,12 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
             ),
             dir='ltr',
             lang='he'
-        ), disabled
+        )
 
 
-################################### ***END MTP Callbacks *** ##########################################################
-"""
+
+
+
                 dbc.Col(
                     html.Div(
                         [
