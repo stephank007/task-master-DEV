@@ -327,127 +327,6 @@ columns = [
     {'name': 'מקור'   , 'id': 'source'    },
     {'name': 'תג״ב'   , 'id': 'due_date'  },
 ][::-1]
-############ AG-GRID ##################################################################################################
-columnDefs = [
-    {
-        'headerName': "mtp_oid",
-        'field': "mtp",
-        'hide': True,
-        'suppressToolPanel': True
-    },
-    {
-        'headerName': "test_oid",
-        'field': "test_oid",
-        'hide': True,
-        'suppressToolPanel': True
-    },
-    {
-        'headerName'       : "step_oid",
-        'field'            : "step_oid",
-        'hide'             : True,
-        'suppressToolPanel': True
-    },
-    {
-        "headerName": "#",
-        "field": "step",
-        'width': 40,
-        'type': 'centerAligned',
-        'cellStyle': {
-            'textAlign': 'center',
-        }
-    },
-    {
-        "headerName": "פעולה",
-        "field": "subject",
-        'width': 120,
-        'cellStyle': {
-            'direction'  : 'rtl',
-            'white-space': 'normal',
-            'word-break' : 'break-word'
-        }
-    },
-    {
-        "headerName": "תוצאה רצויה",
-        "field": "expected",
-        'width': 120,
-        'cellStyle': {
-            'textAlign': 'right',
-            'direction': 'rtl',
-            'white-space': 'normal',
-            'word-break': 'break-word'
-        }
-    },
-    {
-        "headerName": "תוצאה שנתקבלה",
-        "field": "actual_result",
-        'width': 200,
-        "editable": True,
-        "cellEditorPopup": True,
-        "cellEditor": "agLargeTextCellEditor",
-        'cellStyle': {
-            'textAlign': 'right',
-            'direction': 'rtl',
-            'white-space': 'normal',
-            'word-break': 'break-word'
-        }
-    },
-    {
-        "headerName": "סטאטוס",
-        "field": "status",
-        'width': 75,
-        "editable": True,
-        "cellEditor": "agSelectCellEditor",
-        "cellEditorParams": {
-            "values": [Status.P_10, Status.P_11, Status.P_12, Status.P_02],
-        },
-    },
-    {
-        "headerName": "הערות",
-        "field": "comments",
-        'width': 200,
-        "editable": True,
-        "cellEditorPopup": True,
-        "cellEditor": "agLargeTextCellEditor",
-        'cellStyle': {
-            'textAlign'  : 'center',
-            'direction'  : 'rtl',
-            'white-space': 'normal',
-            'word-break' : 'break-word'
-        }
-    },
-    {
-        "headerName": "דיווח תקלה",
-        "field"       : "bug",
-        'width'       : 50,
-        'align'       : 'center',
-        "cellRenderer": "DBC_Button_Simple",
-        "cellRendererParams": {"color": "success"},
-    }
-]
-
-cell_conditional_style = {
-    "styleConditions": [
-        {"condition": "params.value == 'בוצע'"   , "style": {"backgroundColor": "#196A4E", "color": "white"}},
-        {"condition": "params.value == 'תקול'"   , "style": {"backgroundColor": "#800000", "color": "white"}},
-        {"condition": "params.value == 'בריצה'"  , "style": {"backgroundColor": "#d2e034", "color": "black"}},
-        {"condition": "params.value == 'טרם החל'", "style": {"backgroundColor": "dark"   , "color": "white"}},
-    ]
-}
-
-defaultColDef = {
-    # "filter"        : True,
-    # "floatingFilter": True,
-    "resizable"       : True,
-    "sortable"        : True,
-    "editable"        : False,
-    "minWidth"        : 20,
-    'wrapText'        : True,
-    'autoHeight'      : True,
-    'wrapHeaderText'  : True,
-    'autoHeaderHeight': True,
-    "cellStyle"       : cell_conditional_style,
-}
-############ AG-GRID END ##############################################################################################
 
 datatable  = dt.DataTable(
     id='task-table',
@@ -1634,7 +1513,126 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
         t_steps['mtp_oid' ] = t_steps['mtp_oid' ].astype(str)
         t_steps['test_oid'] = t_steps['test_oid'].astype(str)
         t_steps['step_oid'] = t_steps['step_oid'].astype(str)
-        t_steps['bug'] = 'Bug'
+        t_steps['bug'     ] = 'Bug'
+        ############ AG-GRID ##########################################################################################
+        columnDefs             = [
+            {
+                'headerName': "mtp_oid",
+                'field': "mtp",
+                'hide': True,
+                'suppressToolPanel': True
+            },
+            {
+                'headerName': "test_oid",
+                'field': "test_oid",
+                'hide': True,
+                'suppressToolPanel': True
+            },
+            {
+                'headerName': "step_oid",
+                'field': "step_oid",
+                'hide': True,
+                'suppressToolPanel': True
+            },
+            {
+                "headerName": "#",
+                "field": "step",
+                'width': 40,
+                'type': 'centerAligned',
+                'cellStyle': {
+                    'textAlign': 'center',
+                }
+            },
+            {
+                "headerName": "פעולה",
+                "field": "subject",
+                'width': 120,
+                'cellStyle': {
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            },
+            {
+                "headerName": "תוצאה רצויה",
+                "field": "expected",
+                'width': 120,
+                'cellStyle': {
+                    'textAlign': 'right',
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            },
+            {
+                "headerName": "תוצאה שנתקבלה",
+                "field": "actual_result",
+                'width': 200,
+                "editable": True,
+                "cellEditorPopup": True,
+                "cellEditor": "agLargeTextCellEditor",
+                'cellStyle': {
+                    'textAlign': 'right',
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            },
+            {
+                "headerName": "סטאטוס",
+                "field": "status",
+                'width': 75,
+                "editable": True,
+                "cellEditor": "agSelectCellEditor",
+                "cellEditorParams": {
+                    "values": [Status.P_10, Status.P_11, Status.P_12, Status.P_02],
+                },
+            },
+            {
+                "headerName": "הערות",
+                "field": "comments",
+                'width': 200,
+                "editable": True,
+                "cellEditorPopup": True,
+                "cellEditor": "agLargeTextCellEditor",
+                'cellStyle': {
+                    'textAlign': 'center',
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            },
+            {
+                "headerName": "דיווח תקלה",
+                "field": "bug",
+                'width': 50,
+                'align': 'center',
+                "cellRenderer": "DBC_Button_Simple",
+                "cellRendererParams": {"color": "success"},
+            }
+        ]
+        cell_conditional_style = {
+            "styleConditions": [
+                {"condition": "params.value == 'בוצע'", "style": {"backgroundColor": "#196A4E", "color": "white"}},
+                {"condition": "params.value == 'תקול'", "style": {"backgroundColor": "#800000", "color": "white"}},
+                {"condition": "params.value == 'בריצה'", "style": {"backgroundColor": "#d2e034", "color": "black"}},
+                {"condition": "params.value == 'טרם החל'", "style": {"backgroundColor": "dark", "color": "white"}},
+            ]
+        }
+        defaultColDef          = {
+            # "filter"        : True,
+            # "floatingFilter": True,
+            "resizable": True,
+            "sortable": True,
+            "editable": False,
+            "minWidth": 20,
+            'wrapText': True,
+            'autoHeight': True,
+            'wrapHeaderText': True,
+            'autoHeaderHeight': True,
+            "cellStyle": cell_conditional_style,
+        }
+        ############ AG-GRID END ######################################################################################
         grid = dag.AgGrid(
             id="testrun-grid",
             # className="ag-theme-alpine-dark",
@@ -1654,7 +1652,6 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
             },
             style={'height': '100%'}
         )
-
         return grid, disabled, t_steps.to_dict('records')
 
 @callback(
@@ -1703,6 +1700,13 @@ def show_change(bug_row, testrun_data):
     if bug_row is None:
         return dash.no_update
 
-    # debug(testrun_data)
-    return json.dumps(bug_row), f'/home/bug_report/{bug_row}'
+    dff = pd.DataFrame(testrun_data)
+    bug_row_data = dff[dff.index == bug_row.get('rowIndex')]
+    if 'actual_result' in bug_row_data.columns:
+        if pd.isnull(bug_row_data['actual_result'].values[0]):
+            return dash.no_update
+        else:
+            return json.dumps(bug_row), f'/home/bug_report/{bug_row_data.to_dict("records")}'
+    else:
+        return dash.no_update
 ################################### ***END MTP Callbacks *** ##########################################################
