@@ -851,13 +851,15 @@ def layout():
     return dbc.Container([
         html.Div(
             [
-                dcc.Location(id="direction-home", refresh=True),
+                dcc.Location(id="direction-home"   , refresh=True         ),
+                dcc.Location(id="url-testrun-step", refresh="callback-nav"),
                 dcc.Store(id='filters-query'     ),
                 dcc.Store(id='clicked-chart'     ),
                 dcc.Store(id='previous-dropdowns'),
                 dcc.Store(id='diff-store'        ),
                 dcc.Store(id='mtp-test-plans'    ),
-                dcc.Store(id='moshe-id'    ),
+                dcc.Store(id='testrun-dataframe' ),
+                dcc.Store(id='moshe-id'),
                 html.Br(),
                 top_row_form,
                 html.Br(),
@@ -1237,8 +1239,6 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
         t_columns = [{'name': i, 'id': i} for i in dff.columns]
         dff['id'] = dff.index
 
-        print(f'render_test_plan/dtypes: {dff.dtypes}')
-
         jacob =  html.Div(
             dt.DataTable(
                 id='test-plans',
@@ -1604,8 +1604,9 @@ def highlight_selected_row(selRows):
     ]
 
 @callback(
-    Output('testrun-grid-div', 'children'),
-    Output('testrun-button'  , 'disabled' ),
+    Output('testrun-grid-div' , 'children' ),
+    Output('testrun-button'   , 'disabled' ),
+    Output('testrun-dataframe', 'data'     ),
 
     Input('testrun-button', 'n_clicks'     ),
     Input('test-plans'    , 'selected_rows'),
@@ -1654,7 +1655,7 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
             style={'height': '100%'}
         )
 
-        return grid, disabled
+        return grid, disabled, t_steps.to_dict('records')
 
 @callback(
     Output('moshe-id', 'data'                 ),
@@ -1693,181 +1694,15 @@ def update_testrun_execution(_, row, data):
     return None
 
 @callback(
-    Output("testrun-value-changed", "children"),
-    Input("testrun-grid", "cellRendererData"),
+    Output('testrun-value-changed', 'children'),
+    Output('url-testrun-step' , 'href'            ),
+    Input ('testrun-grid'     , 'cellRendererData'),
+    Input ('testrun-dataframe', 'data'            )
 )
-def show_change(n):
-    return json.dumps(n)
+def show_change(bug_row, testrun_data):
+    if bug_row is None:
+        return dash.no_update
+
+    # debug(testrun_data)
+    return json.dumps(bug_row), f'/home/bug_report/{bug_row}'
 ################################### ***END MTP Callbacks *** ##########################################################
-"""
-return html.Div(
-            dt.DataTable(
-                id='steps-table',
-                data=t_steps.to_dict('records'),
-                columns=t_columns[::-1],
-                css=table_css,
-                dropdown=testplan_dropdown,
-                style_cell=test_tables_style_cell,
-                style_header=header_style,
-                hidden_columns=['mtp_oid', 'test_oid', 'step_oid'],
-                markdown_options={"html": True},
-                style_cell_conditional=test_steps_formatting,
-                style_data_conditional=test_tables_style_data_conditional,
-                style_header_conditional=test_tables_style_header_conditional,
-            ),
-            dir='ltr',
-            lang='he'
-        )
-
-
-
-
-
-                dbc.Col(
-                    html.Div(
-                        [
-                            dbc.Row(html.Div(simple_table_renderer(bp_rns  ))),
-                            dbc.Row(html.Div(simple_table_renderer(chapters))),
-                            dbc.Row(html.Div(simple_table_renderer(systems ))),
-                        ]
-                    ),
-                    class_name='col-3',
-                    style=row_style
-                )
-
-
-
-@callback(
-    Output('diff-store' , 'data'),
-    Output('steps-table', 'data'),
-    ##
-    Input('testrun-button', 'n_clicks'   ),
-    ##
-    Input('steps-table', 'data_timestamp'),
-    State('steps-table', 'data'          ),
-    State('steps-table', 'data_previous' ),
-    State('diff-store' , 'data'          ),
-    ## parent tables
-    State('test-plans', 'selected_rows'),
-    State('task-table', 'selected_rows'),
-    State('test-plans', 'data'         ),
-    State('task-table', 'data'         ),
-)
-def testrun_diff_update_manager(
-    clicks,
-    ts, data_current, data_previous, diff_store_data,
-    selected_plan, selected_task, plan_data, task_data
-):
-    if ts is None:
-        return dash.no_update
-
-    diff_store_data     = diff_store_data or {}
-    diff_store_data[ts] = diff_dashtable(data_current, data_previous)
-    dff = pd.DataFrame(data_current)
-    if diff_store_data[ts]:
-        current_status = diff_store_data[ts][0].get('current_value')
-        current_index  = diff_store_data[ts][0].get('index')
-        symbol = ban if not current_status else status_map[current_status]
-        diff_store_data[ts][0].update({'icon': symbol})
-        dff.loc[current_index, 'symbol'] = symbol
-        dff.loc[current_index, 'status'] = current_status
-        mtp_record = task_data[0]
-        test_name  = plan_data[selected_plan[0]]['test_name']
-        query = {
-            #cursor = db.inventory.find({"instock": {"$elemMatch": {"qty": 5, "warehouse": "A"}}})
-            # 'mtp_object.test_plan': {'$elemMatch': {'test_name': test_name}}
-        }
-        db = task_db.get_db()
-        collection = db['tasks']
-        cursor = collection.aggregate(
-            [
-                {
-                    '$match': {
-                        '_id': ObjectId(mtp_record.get('_id'))
-                    }
-                },
-                {'$unwind': '$mtp_object.test_plan'},
-                # {'$match': {'test_plan.test_name': test_name}}
-            ]
-        )
-        moshe = [c for c in cursor]
-        # debug(moshe)
-        # cursor = task_db.find_documents_by_query(collection='tasks', query=query)
-
-    if ctx.triggered_id == 'testrun-button':
-        run_status = testrun_status(child_status=[c_status['status'] for c_status in data_current])
-        plan_data[selected_plan[0]]['status'] = run_status
-        plan_data[selected_plan[0]]['symbol'] = status_map[run_status]
-        return diff_store_data, data_current
-
-    records = dff.to_dict('records')
-    return diff_store_data, records
-
-
-
-
-
-
-
-
-
-    # change_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-    ctx_msg = json.dumps({
-        'states'   : ctx.states,
-        'triggered': ctx.triggered,
-        'inputs'   : ctx.inputs
-    }, indent=2)
-    
-    
-    def render_steps(step_list: list) -> dt.DataTable:
-        records = []
-        for t_step in step_list:
-            record = {
-                'step'     : f'{t_step.get("step"):0>2}',
-                'mtp_id'   : t_step.get('mtp_id'   ),
-                'test_name': t_step.get('test_name'),
-                'exp_sap'  : t_step.get('exp_sap'  ),
-                'exp_wms'  : t_step.get('exp_wms'  ),
-                'status'   : 'status',
-            }
-            records.append(record)
-        return pd.DataFrame(records)
-
-    dt_changes = []
-    for v in diff_store_data.values():
-        dt_changes.append(f"* {v}")
-    changes = [dcc.Markdown(change) for change in dt_changes]
-
-@callback(
-    Output('steps-table', 'data'),
-    Output('test-plans' , 'data'),
-
-    Input ('steps-table', 'data'),
-    State ('test-plans' , 'selected_rows'),
-    State ('task-table' , 'selected_rows'),
-    State ('test-plans' , 'data'         ),
-    State ('task-table' , 'data'         ),
-)
-def parent_status_from_steps_table_changes(steps_data, selected_plan, selected_task, plan_data, task_data):
-    if ctx.triggered_id == 'steps-table':
-        m_0 = ctx.triggered[0].get('value')
-        status_list = [m.get('status') for m in m_0]
-        run_status = testrun_status(child_status=status_list)
-
-        plan_data[selected_plan[0]]['status'] = run_status
-        plan_data[selected_plan[0]]['symbol'] = status_map[run_status]
-    else:
-        return dash.no_update
-    return m_0, plan_data
-    
-                            dbc.Row(
-                                dbc.Button(
-                                    "סגור ריצה",
-                                    id='testrun-close',
-                                    size="lg",
-                                    class_name="h-100 me-1 mt-1",
-                                    color='dark',
-                                    disabled=False,
-                                )
-                            )
-"""
