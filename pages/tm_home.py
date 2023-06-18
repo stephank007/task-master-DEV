@@ -1382,8 +1382,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
             class_name='mt-1',
             justify='center'
         )
-        m_layout = html.Div(
-            [
+        m_layout = html.Div(id='testplan-layout', children=[
                 first_row ,
                 second_row,
                 third_row ,
@@ -1848,38 +1847,27 @@ def update_testrun_execution(_, row, data):
 @callback(
     Output('testrun-value-changed', 'children'),
     Output('url-testrun-step' , 'href'            ),
+    Output('step-row-data'    , 'data'            ),
     Input ('testrun-grid'     , 'cellRendererData'),
     Input ('testrun-dataframe', 'data'            )
 )
-def show_change(bug_row, testrun_data):
-    if bug_row is None:
+def show_change(step_row, testrun_data):
+    if step_row is None:
         return dash.no_update
 
-    bug_row_data = testrun_data[bug_row.get('rowIndex')]
-    action = bug_row.get('colId')
-    bug_row_data.update({'action': action})
-    if 'actual_result' in bug_row_data.keys():
-        if bug_row_data.get('actual_result') is None:
+    step_row_data = testrun_data[step_row.get('rowIndex')]
+    action = step_row.get('colId')
+    step_row_data.update({'action': action})
+    if 'actual_result' in step_row_data.keys():
+        if step_row_data.get('actual_result') is None:
             return dash.no_update
         else:
-            del bug_row_data['subject']
-            del bug_row_data['expected']
-            del bug_row_data['actual_result']
-            del bug_row_data['pot']
-            del bug_row_data['bug']
-            return json.dumps(bug_row), f'/home/file_handler/{bug_row_data}'
+            del step_row_data['subject']
+            del step_row_data['expected']
+            del step_row_data['actual_result']
+            del step_row_data['pot']
+            del step_row_data['step']
+            return json.dumps(step_row), f'/home/file_handler/{step_row_data}', step_row_data
     else:
         return dash.no_update
 ################################### ***END MTP Callbacks *** ##########################################################
-"""
-            # className="ag-theme-alpine-dark",
-            # className="ag-theme-alpine headers1",
-            # columnSize="autoSize",
-            
-'cellStyle': {
-                    'color': 'red',
-                    'textAlign'     : 'center',
-                    'vertical-align': 'middle',
-                    'text-align'    : 'center'
-                }
-"""

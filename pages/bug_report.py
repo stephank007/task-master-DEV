@@ -68,16 +68,3 @@ def layout(step_row=None, **other_unknown_query_strings):
         fluid=True
     )
     return bug_report
-
-"""       {
-            '$unwind': '$test_steps'
-        },
-        {
-            '$match': {
-                'test_steps.step_oid': test_step_oid
-            }
-        },
-        {
-            '$replaceWith': '$test_steps'
-        },
-"""
