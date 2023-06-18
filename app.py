@@ -4,6 +4,7 @@ import warnings
 import dash_bootstrap_components as dbc
 import pathlib
 import schemas.tm_services as sv
+from flask import Flask, send_from_directory
 from dash import Dash, dcc, html
 
 task_db = sv.task_db
@@ -139,9 +140,17 @@ def page_title() -> dbc.Container:
 
 root = pathlib.Path(__file__).parent
 app  = None
+server = Flask(__name__)
+
+@server.route("/download/<path:path>")
+def download(path):
+    """Serve a file from the upload directory."""
+    return send_from_directory(sv.UPLOAD_DIRECTORY, path, as_attachment=True)
+
 try:
     app = Dash(
         __name__,
+        server=server,
         assets_folder=root.joinpath('assets').as_posix(),
         use_pages=True,
         suppress_callback_exceptions=True,

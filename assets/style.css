@@ -29,6 +29,7 @@
 }
 .ag-theme-alpine .ag-header-cell {
     font-size: 18px;
+    text-align: center;
 }
 /* balham */
 .ag-theme-balham.headers1 {
@@ -58,6 +59,7 @@
 }
 .ag-theme-balham .ag-header-cell {
     font-size: 18px;
+    text-align: center!important;
 }
 /* END        AG-GRID Themes */
 

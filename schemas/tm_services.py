@@ -1,8 +1,20 @@
+import os
+import pathlib
 import pandas as pd
 from schemas.mongo_schema import MongoManager
 import dash_bootstrap_components as dbc
 from dash import html
 from datetime import datetime
+
+root      = pathlib.Path(__file__).parent.parent
+input_path  = root.joinpath('resources', 'data', '_in' )
+output_path = root.joinpath('resources', 'data', '_out')
+
+UPLOAD_DIRECTORY = output_path
+print(UPLOAD_DIRECTORY)
+
+if not os.path.exists(UPLOAD_DIRECTORY):
+    os.makedirs(UPLOAD_DIRECTORY)
 
 task_db = MongoManager('Task')
 dt_date = datetime.now()

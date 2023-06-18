@@ -44,6 +44,14 @@ class WMSDomain(str, ExtendedEnum):
     ym = 'ניהול החצר'
     ct = 'תשתיות'
 
+class StorageType(str, ExtendedEnum):
+    s1 = 'מזון'
+    s2 = 'ציוד רפואי'
+    s3 = 'דלק ושמנים'
+    s4 = 'חלפים'
+    s5 = 'ציוד לוגיסטי'
+    s6 = 'חלפים תקשוב'
+
 class Status(str, ExtendedEnum):
     P_01 = 'פתוח'
     P_02 = 'בוצע'

@@ -13,7 +13,7 @@ from schemas     import tm_services   as sv
 from typing      import Tuple, Any
 from devtools    import debug
 from collections import Counter
-from schemas.fields       import Priority, SAPDomainEnum, SAPProcessEnum, Status
+from schemas.fields       import Priority, SAPDomainEnum, SAPProcessEnum, Status, StorageType
 from schemas.mongo_schema import timing_decorator, dt_date
 
 # db.collection.createIndex( { "$**": "text" } )
@@ -1112,11 +1112,155 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
             stories.append(story)
 
         dff = pd.DataFrame(stories)
-        # dff['mtp_oid' ] = dff['mtp_oid' ].apply(lambda x: str(x))
-        # dff['test_oid'] = dff['test_oid'].apply(lambda x: str(x))
 
         t_columns = [{'name': i, 'id': i} for i in dff.columns]
         dff['id'] = dff.index
+        #### AG-GRID for testplan table ##############################################################################
+        columnDefs             = [
+            {
+                'headerName': "mtp_oid",
+                'field': "mtp",
+                'hide': True,
+                'suppressToolPanel': True
+            },
+            {
+                'headerName': "test_oid",
+                'field': "test_oid",
+                'hide': True,
+                'suppressToolPanel': True
+            },
+            {
+                'headerName': "test_steps",
+                'field': "test_steps",
+                'hide': True,
+                'suppressToolPanel': True
+            },
+            {
+                "headerName": "תיאור הבדיקה",
+                "field": "story",
+                'width': 120,
+                'cellStyle': {
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            },
+            {
+                "headerName": "דרישת קדם",
+                "field": "prereq",
+                'width': 120,
+                'cellStyle': {
+                    'textAlign': 'right',
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            },
+            {
+                "headerName": "בודק",
+                "field": "tester",
+                'width': 80,
+                'cellStyle': {
+                    'textAlign': 'right',
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            },
+            {
+                "headerName": "סטאטוס",
+                "field": "status",
+                'width': 75,
+                "editable": True,
+                "cellEditor": "agSelectCellEditor",
+                "cellEditorParams": {
+                    "values": [Status.P_10, Status.P_11, Status.P_12, Status.P_02],
+                },
+            },
+            {
+                "headerName": "מספר קטלוגי",
+                "field": "catalog",
+                'width': 75,
+                "editable": True,
+            },
+            {
+                "headerName": "משק",
+                "field": "storage_type",
+                'width': 75,
+                "editable": True,
+                "cellEditor": "agSelectCellEditor",
+                "cellEditorParams": {
+                    "values": [
+                        StorageType.s1, StorageType.s2, StorageType.s3,
+                        StorageType.s4, StorageType.s5, StorageType.s6
+                    ],
+                },
+            },
+            {
+                "headerName": "הערות",
+                "field": "comments",
+                'width': 200,
+                "editable": True,
+                "cellEditorPopup": True,
+                "cellEditor": "agLargeTextCellEditor",
+                'cellStyle': {
+                    'textAlign': 'center',
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            },
+            {
+                "headerName": "דיווח תקלה",
+                "field": "bug",
+                'width': 50,
+                'align': 'center',
+                "cellRenderer": "DBC_Button",
+                "cellRendererParams": {
+                    "rightIcon": "fas fa-bug mt-1",
+                    "outline": True,
+                    "color": "danger"
+                },
+            }
+        ]
+        cell_conditional_style = {
+            "styleConditions": [
+                {"condition": "params.value == 'בוצע'"   , "style": {"backgroundColor": "#196A4E", "color": "white"}},
+                {"condition": "params.value == 'תקול'"   , "style": {"backgroundColor": "#800000", "color": "white"}},
+                {"condition": "params.value == 'בריצה'"  , "style": {"backgroundColor": "#d2e034", "color": "black"}},
+                {"condition": "params.value == 'טרם החל'", "style": {"backgroundColor": "dark"   , "color": "white"}},
+            ]
+        }
+        defaultColDef          = {
+            # "filter"        : True,
+            # "floatingFilter": True,
+            "resizable": True,
+            "sortable": True,
+            "editable": False,
+            "minWidth": 20,
+            'wrapText': True,
+            'autoHeight': True,
+            'wrapHeaderText': True,
+            'autoHeaderHeight': True,
+            "cellStyle": cell_conditional_style,
+        }
+        jacob_x = dag.AgGrid(
+            id="testplan-grid",
+            columnSize="sizeToFit",
+            className="ag-theme-balham headers1",
+            columnDefs=columnDefs,
+            rowData=dff.to_dict("records"),
+            defaultColDef=defaultColDef,
+            dashGridOptions={
+                "undoRedoCellEditing": True,
+                'enableRtl': True,
+                "rowSelection": "single",
+                "rowHeight": 48,
+                'verticalAlign': 'middle'
+            },
+            style={'height': '100%'}
+        )
+        #### AG-GRID for testplan table ##############################################################################
 
         jacob =  html.Div(
             dt.DataTable(
@@ -1539,10 +1683,7 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
                 "headerName": "#",
                 "field": "step",
                 'width': 40,
-                'type': 'centerAligned',
-                'cellStyle': {
-                    'textAlign': 'center',
-                }
+                'cellClass': 'text-center',
             },
             {
                 "headerName": "פעולה",
@@ -1607,8 +1748,8 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
                 "headerName": "דיווח תקלה",
                 "field": "bug",
                 'width': 50,
-                'align': 'center',
                 "cellRenderer": "DBC_Button",
+                'cellClass'   : 'text-center',
                 "cellRendererParams": {
                     "rightIcon": "fas fa-bug mt-1",
                     "outline"  : True,
@@ -1616,17 +1757,17 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
                 },
             },
             {
-                "headerName": "הוכתת בדיקה",
+                "headerName": "הוכחת בדיקה",
                 "field": "pot",
                 'width': 50,
-                'align': 'center',
                 'cellRenderer': "DBC_Button",
+                'cellClass'   : 'text-center',
                 "cellRendererParams": {
                     "rightIcon": "fas fa-upload mt-1",
                     "outline"  : True,
                     "color": "success"
                 },
-            }
+            },
         ]
         cell_conditional_style = {
             "styleConditions": [
@@ -1652,9 +1793,6 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
         ############ AG-GRID END ######################################################################################
         grid = dag.AgGrid(
             id="testrun-grid",
-            # className="ag-theme-alpine-dark",
-            # className="ag-theme-alpine headers1",
-            # columnSize="autoSize",
             columnSize="sizeToFit",
             className="ag-theme-balham headers1",
             columnDefs=columnDefs,
@@ -1729,7 +1867,19 @@ def show_change(bug_row, testrun_data):
             del bug_row_data['actual_result']
             del bug_row_data['pot']
             del bug_row_data['bug']
-            return json.dumps(bug_row), f'/home/bug_report/{bug_row_data}'
+            return json.dumps(bug_row), f'/home/file_handler/{bug_row_data}'
     else:
         return dash.no_update
 ################################### ***END MTP Callbacks *** ##########################################################
+"""
+            # className="ag-theme-alpine-dark",
+            # className="ag-theme-alpine headers1",
+            # columnSize="autoSize",
+            
+'cellStyle': {
+                    'color': 'red',
+                    'textAlign'     : 'center',
+                    'vertical-align': 'middle',
+                    'text-align'    : 'center'
+                }
+"""
