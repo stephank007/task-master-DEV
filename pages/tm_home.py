@@ -703,7 +703,7 @@ def testrun_status(child_status: list) -> Status:
     status_key = [i for i, x in enumerate(t) if x]
     return Status.P_11 if not status_key else my_map[status_key[0]]
 
-def get_testrun_data(test_plan_oid: ObjectId):
+def get_selected_testplan_data(test_plan_oid: ObjectId):
     query = [
         {
             '$match': {
@@ -1500,7 +1500,7 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
     else:
         row = rows[selected_row[0]]
         test_oid = ObjectId(row.get('test_oid'))
-        t_steps = pd.DataFrame(get_testrun_data(test_plan_oid=test_oid)[0].get('test_steps'))
+        t_steps = pd.DataFrame(get_selected_testplan_data(test_plan_oid=test_oid)[0].get('test_steps'))
         try:
             t_steps    = t_steps[
                 ['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'expected', 'actual_result', 'status']
@@ -1513,7 +1513,8 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
         t_steps['mtp_oid' ] = t_steps['mtp_oid' ].astype(str)
         t_steps['test_oid'] = t_steps['test_oid'].astype(str)
         t_steps['step_oid'] = t_steps['step_oid'].astype(str)
-        t_steps['bug'     ] = 'Bug'
+        t_steps['bug'     ] = ''
+        t_steps['pot'     ] = ''
         ############ AG-GRID ##########################################################################################
         columnDefs             = [
             {
@@ -1607,16 +1608,32 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
                 "field": "bug",
                 'width': 50,
                 'align': 'center',
-                "cellRenderer": "DBC_Button_Simple",
-                "cellRendererParams": {"color": "success"},
+                "cellRenderer": "DBC_Button",
+                "cellRendererParams": {
+                    "rightIcon": "fas fa-bug mt-1",
+                    "outline"  : True,
+                    "color"    : "danger"
+                },
+            },
+            {
+                "headerName": "הוכתת בדיקה",
+                "field": "pot",
+                'width': 50,
+                'align': 'center',
+                'cellRenderer': "DBC_Button",
+                "cellRendererParams": {
+                    "rightIcon": "fas fa-upload mt-1",
+                    "outline"  : True,
+                    "color": "success"
+                },
             }
         ]
         cell_conditional_style = {
             "styleConditions": [
-                {"condition": "params.value == 'בוצע'", "style": {"backgroundColor": "#196A4E", "color": "white"}},
-                {"condition": "params.value == 'תקול'", "style": {"backgroundColor": "#800000", "color": "white"}},
-                {"condition": "params.value == 'בריצה'", "style": {"backgroundColor": "#d2e034", "color": "black"}},
-                {"condition": "params.value == 'טרם החל'", "style": {"backgroundColor": "dark", "color": "white"}},
+                {"condition": "params.value == 'בוצע'"   , "style": {"backgroundColor": "#196A4E", "color": "white"}},
+                {"condition": "params.value == 'תקול'"   , "style": {"backgroundColor": "#800000", "color": "white"}},
+                {"condition": "params.value == 'בריצה'"  , "style": {"backgroundColor": "#d2e034", "color": "black"}},
+                {"condition": "params.value == 'טרם החל'", "style": {"backgroundColor": "dark"   , "color": "white"}},
             ]
         }
         defaultColDef          = {
@@ -1700,13 +1717,19 @@ def show_change(bug_row, testrun_data):
     if bug_row is None:
         return dash.no_update
 
-    dff = pd.DataFrame(testrun_data)
-    bug_row_data = dff[dff.index == bug_row.get('rowIndex')]
-    if 'actual_result' in bug_row_data.columns:
-        if pd.isnull(bug_row_data['actual_result'].values[0]):
+    bug_row_data = testrun_data[bug_row.get('rowIndex')]
+    action = bug_row.get('colId')
+    bug_row_data.update({'action': action})
+    if 'actual_result' in bug_row_data.keys():
+        if bug_row_data.get('actual_result') is None:
             return dash.no_update
         else:
-            return json.dumps(bug_row), f'/home/bug_report/{bug_row_data.to_dict("records")}'
+            del bug_row_data['subject']
+            del bug_row_data['expected']
+            del bug_row_data['actual_result']
+            del bug_row_data['pot']
+            del bug_row_data['bug']
+            return json.dumps(bug_row), f'/home/bug_report/{bug_row_data}'
     else:
         return dash.no_update
 ################################### ***END MTP Callbacks *** ##########################################################
