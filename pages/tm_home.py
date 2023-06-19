@@ -1,10 +1,14 @@
+import os
 import dash
 import json
+import base64
+import datetime
 import pandas as pd
 import plotly.express       as px
 import schemas.mongo_schema as ms
 import dash_bootstrap_components  as dbc
 import dash_ag_grid as dag
+from urllib.parse import quote as urlquote
 from bson        import ObjectId
 from dash        import html, dcc, callback, Input, Output, State, ctx
 from dash        import dash_table    as dt
@@ -725,6 +729,34 @@ def get_selected_testplan_data(test_plan_oid: ObjectId):
         }
     ]
     return task_db.aggregate_query(collection='tasks', query=query)
+
+def save_file(name, content):
+    """Decode and store a file uploaded with Plotly Dash."""
+    data = content.encode("utf8").split(b";base64,")[1]
+    # name = f'{datetime.datetime.now()}-{name}'
+    with open(name, "wb") as fp:
+        fp.write(base64.decodebytes(data))
+
+
+def uploaded_files(file_directory):
+    """List the files in the upload directory."""
+    files = []
+    for filename in os.listdir(file_directory):
+        files.append(filename)
+        if os.path.isfile(filename):
+            files.append(filename)
+        else:
+            print('moshe')
+    return files
+
+
+def file_download_link(filename, file_directory):
+    """Create a Plotly Dash 'A' element that downloads a file from the app."""
+
+    location = "/download/{}".format(urlquote(filename))
+    location = file_directory.joinpath(filename).as_posix()
+    return html.A(filename, href=location)
+
 ######################################################################################################################
 def layout():
     return dbc.Container([
@@ -1321,7 +1353,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
                 )
             ]
         )
-        second_row = dbc.Row(
+        second_row = dbc.Row(  # תכלית בדיקה
             dbc.Col(
                 html.Div(simple_table_renderer(purpose)),
                 class_name='col-4 mt-0',
@@ -1331,7 +1363,6 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
         )
         third_row = dbc.Row(
             [
-                dbc.Col(class_name='col-2'),
                 dbc.Col(
                     html.Div(
                         [
@@ -1342,17 +1373,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
                     class_name='col-8 mt-0',
                     style=row_style
                 ),
-                dbc.Col(
-                    dbc.Button(
-                        "הצג תיעוד",
-                        id='documentation-button',
-                        size="lg",
-                        class_name="h-100 me-1 mt-1",
-                        color='dark',
-                        disabled=True,
-                    ),
-                    class_name='col-1'
-                )
+
             ],
             justify='center',
             class_name='mt-1'
@@ -1362,22 +1383,26 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
                 dbc.Alert('הרצת הבדיקה', class_name='fs-3 text-center'),
                 dbc.Col(
                     html.Div(
-                        id='testrun-grid-div',
-                        style={'height': 820}
+                        [
+                            html.Div(id='testrun-grid-div', style={'height': 820}),
+                            dbc.Modal(
+                                [
+                                    dbc.ModalHeader("More information about selected row"),
+                                    dbc.ModalBody  (id="file-handler-modal-content"),
+                                    dbc.ModalFooter(
+                                        dbc.Button(
+                                            "Close",
+                                            id="close",
+                                            className="ml-auto"
+                                        )
+                                    ),
+                                ],
+                                id="file-handler-modal",
+                            )
+                        ]
                     ),
                 ),
-                dbc.Col(
-                    dbc.Button(
-                        "עדכון ריצה",
-                        id='testrun-button',
-                        size="lg",
-                        class_name="h-100 me-1 mt-1",
-                        color='dark',
-                        disabled=True,
-                    ),
-                    class_name='col-1',
-                    style={'display': 'none'}
-                )
+
             ],
             class_name='mt-1',
             justify='center'
@@ -1627,16 +1652,14 @@ def highlight_selected_row(selRows):
 
 @callback(
     Output('testrun-grid-div' , 'children' ),
-    Output('testrun-button'   , 'disabled' ),
     Output('testrun-dataframe', 'data'     ),
 
-    Input('testrun-button', 'n_clicks'     ),
     Input('test-plans'    , 'selected_rows'),
     Input('test-plans'    , 'data'         ),
     State('mtp-test-plans', 'data'         ),
 )
-def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
-    disabled = True if ctx.triggered_id == 'testrun-button' else False
+def testrun_table_creation(selected_row, rows, selected_test_plans):
+    # disabled = True if ctx.triggered_id == 'testrun-button' else False
 
     if selected_row is None:
         return dash.no_update
@@ -1806,7 +1829,7 @@ def testrun_table_return(clicks, selected_row, rows, selected_test_plans):
             },
             style={'height': '100%'}
         )
-        return grid, disabled, t_steps.to_dict('records')
+        return grid, t_steps.to_dict('records')
 
 @callback(
     Output('moshe-id', 'data'                 ),
@@ -1845,29 +1868,103 @@ def update_testrun_execution(_, row, data):
     return None
 
 @callback(
-    Output('testrun-value-changed', 'children'),
-    Output('url-testrun-step' , 'href'            ),
+    Output('testrun-value-changed'     , 'children'),
+    Output("file-handler-modal"        , "is_open" ),
+    Output("file-handler-modal-content", "children"),
+    # Output('url-testrun-step' , 'href'            ),
     Output('step-row-data'    , 'data'            ),
+
     Input ('testrun-grid'     , 'cellRendererData'),
-    Input ('testrun-dataframe', 'data'            )
+    Input ('testrun-dataframe', 'data'            ),
+    Input ('close'            , 'n_clicks'        ),
+
 )
-def show_change(step_row, testrun_data):
+def step_row_manager(step_row, testrun_data, close_click):
+    def file_handler_layout():
+        return html.Div(
+            [
+                dcc.Upload(
+                    id="upload-data",
+                    children=html.Div(
+                        ["Drag and drop or click to select a file to upload."]
+                    ),
+                    style={
+                        "width"       : "100%",
+                        "height"      : "60px",
+                        "lineHeight"  : "60px",
+                        "borderWidth" : "1px",
+                        "borderStyle" : "dashed",
+                        "borderRadius": "5px",
+                        "textAlign"   : "center",
+                        "margin"      : "10px",
+                    },
+                    multiple=True,
+                ),
+                html.H2("File List"),
+                html.Ul(id="file-list"),
+            ],
+            style={"max-width": "500px"},
+        )
+
     if step_row is None:
         return dash.no_update
 
-    step_row_data = testrun_data[step_row.get('rowIndex')]
-    action = step_row.get('colId')
-    step_row_data.update({'action': action})
-    if 'actual_result' in step_row_data.keys():
-        if step_row_data.get('actual_result') is None:
-            return dash.no_update
-        else:
-            del step_row_data['subject']
-            del step_row_data['expected']
-            del step_row_data['actual_result']
-            del step_row_data['pot']
-            del step_row_data['step']
-            return json.dumps(step_row), f'/home/file_handler/{step_row_data}', step_row_data
+    if ctx.triggered_id == "close":
+        return dash.no_update, False, dash.no_update, dash.no_update
+
+    if ctx.triggered_id == 'testrun-grid':
+        step_row_data = testrun_data[step_row.get('rowIndex')]
+        action = step_row.get('colId')
+        step_row_data.update({'action': action})
+        if 'actual_result' in step_row_data.keys():
+            if step_row_data.get('actual_result') is None:
+                return dash.no_update
+            else:
+                del step_row_data['subject']
+                del step_row_data['expected']
+                del step_row_data['actual_result']
+                del step_row_data['pot']
+                del step_row_data['step']
+                # return json.dumps(step_row), f'/home/file_handler/{step_row_data}', step_row_data
+                return json.dumps(step_row), True, file_handler_layout(), step_row_data
     else:
         return dash.no_update
+
+@callback(
+    Output('file-list'    , 'children'),
+
+    Input ('upload-data'  , 'filename'),
+    Input ('upload-data'  , 'contents'),
+    Input ('step-row-data', 'data'    )
+)
+def update_output(uploaded_filenames, uploaded_file_contents, step_row_data):
+    """Save uploaded files and regenerate the file list."""
+    action = step_row_data.get('action')
+    oid = step_row_data.get('step_oid')
+    parent  = sv.UPLOAD_DIRECTORY.joinpath(oid)
+    bug_dir = sv.UPLOAD_DIRECTORY.joinpath(parent, 'bug')
+    pot_dir = sv.UPLOAD_DIRECTORY.joinpath(parent, 'pot')
+
+    if not parent.exists():
+        parent.mkdir()
+        bug_dir.mkdir()
+        pot_dir.mkdir()
+
+    file_directory = parent.joinpath(action)
+    if uploaded_filenames is not None and uploaded_file_contents is not None:
+        for name, data in zip(uploaded_filenames, uploaded_file_contents):
+            name = f'{round(datetime.datetime.now().timestamp())}-{name}'
+            name = file_directory.joinpath(name)
+            save_file(name, data)
+
+    files = uploaded_files(file_directory)
+    if len(files) == 0:
+        return [html.Li("No files yet!")]
+    else:
+        return [
+            html.Li(
+                file_download_link(filename, file_directory)
+            ) for filename in files
+        ]
+
 ################################### ***END MTP Callbacks *** ##########################################################

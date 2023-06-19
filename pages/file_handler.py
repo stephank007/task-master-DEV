@@ -89,7 +89,7 @@ def file_download_link(filename, file_directory):
 
     Input ('upload-data'   , 'filename'),
     Input ('upload-data'   , 'contents'),
-    Input('step-row-data'  , 'data'    )
+    Input ('step-row-data'  , 'data'   )
 )
 def update_output(uploaded_filenames, uploaded_file_contents, step_row_data):
     """Save uploaded files and regenerate the file list."""
