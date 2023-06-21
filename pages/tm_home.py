@@ -1154,6 +1154,8 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
             stories.append(story)
 
         dff = pd.DataFrame(stories)
+        dff = pd.DataFrame(test_plans)
+        dff.drop(['test_steps'], inplace=True, axis=1)
 
         t_columns = [{'name': i, 'id': i} for i in dff.columns]
         dff['id' ] = dff.index
@@ -1673,22 +1675,48 @@ def parse_chart_event(pie_data, bar_data, pdu_data):
     State('testplan-grid', 'rowData'         ),
     Input('testplan-grid', 'cellValueChanged'),
 )
-def testrun_table_creation(selected_row, rows, value_changed):
+def testrun_table_creation(selected_row, rows, _):
     # disabled = True if ctx.triggered_id == 'testrun-button' else False
     if selected_row is None:
         return dash.no_update
 
+    ### update block
+    moshe = ctx.inputs
+
+    if ctx.inputs.get('testplan-grid.cellValueChanged'):
+        test_oid  = ObjectId(_.get('data').get('test_oid'))
+        mtp_oid   = ObjectId(_.get('data').get('mtp_oid' ))
+        old_value = _.get('old_value')
+        new_value = _.get('value'    )
+        col_name  = _.get('colId'    )
+
+        db = task_db.get_db()
+        result = db.tasks.update_one(
+            {'mtp_object.mtp_oid': mtp_oid},
+            {
+                "$set": {
+                    f"mtp_object.test_plan.$[plan].{col_name}": new_value
+                }
+            },
+            array_filters=[
+                {'plan.test_oid': test_oid},
+            ],
+            upsert=True
+        )
+        print(f'matched: {result.matched_count} modified: {result.modified_count}')
+    ### END update block
+
     row = selected_row[0]
     test_oid = ObjectId(row.get('test_oid'))
     t_steps = pd.DataFrame(get_selected_testplan_data(test_plan_oid=test_oid)[0].get('test_steps'))
-    try:
-        t_steps    = t_steps[
-            ['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'expected', 'actual_result', 'status']
-        ]
-    except KeyError as ex:
-        t_steps    = t_steps[
-            ['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'expected', 'status']
-        ]
+#     try:
+#         t_steps    = t_steps[
+#             ['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'expected', 'actual_result', 'status']
+#         ]
+#     except KeyError as ex:
+#         t_steps    = t_steps[
+#             ['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'expected', 'status']
+#         ]
 
     t_steps['mtp_oid' ] = t_steps['mtp_oid' ].astype(str)
     t_steps['test_oid'] = t_steps['test_oid'].astype(str)
@@ -1856,6 +1884,11 @@ def update_testrun_execution(_, row, data):
     # print(ctx.triggered_id)
     if _ is None:
         return dash.no_update
+
+    moshe_0 = ctx.inputs
+    moshe_1 = ctx.triggered
+    moshe_2 = ctx.states
+
     step_oid  = ObjectId(_.get('data').get('step_oid'))
     test_oid  = ObjectId(_.get('data').get('test_oid'))
     mtp_oid   = ObjectId(_.get('data').get('mtp_oid' ))
