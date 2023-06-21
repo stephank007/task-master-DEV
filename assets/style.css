@@ -1,5 +1,8 @@
 /* to allow datatable dropdown to show */
-
+img[src*="#thumbnail"] {
+   width:200px;
+   height:100px;
+}
 
 /* AG-GRID Themes */
 .ag-theme-alpine.headers1 {

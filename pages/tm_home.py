@@ -737,25 +737,35 @@ def save_file(name, content):
     with open(name, "wb") as fp:
         fp.write(base64.decodebytes(data))
 
-
 def uploaded_files(file_directory):
     """List the files in the upload directory."""
     files = []
     for filename in os.listdir(file_directory):
         files.append(filename)
-        if os.path.isfile(filename):
+        fn = file_directory.joinpath(filename).as_posix()
+        try:
+            with open(fn, 'rb') as fr:
+                moshe_1 = fr.read()
+        except Exception as ex:
+            print(ex)
+
+        if os.path.isfile(fn):
             files.append(filename)
         else:
-            print('moshe')
+            print(fn, 'is not a file')
     return files
-
 
 def file_download_link(filename, file_directory):
     """Create a Plotly Dash 'A' element that downloads a file from the app."""
 
+    fn = file_directory.joinpath(filename).as_posix()
     location = "/download/{}".format(urlquote(filename))
-    location = file_directory.joinpath(filename).as_posix()
     return html.A(filename, href=location)
+
+def encode_image(image_path):
+    with open(image_path, 'rb') as file:
+        encoded_string = base64.b64encode(file.read()).decode('utf-8')
+    return encoded_string
 
 ######################################################################################################################
 def layout():
@@ -1146,8 +1156,17 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
         dff = pd.DataFrame(stories)
 
         t_columns = [{'name': i, 'id': i} for i in dff.columns]
-        dff['id'] = dff.index
+        dff['id' ] = dff.index
+        dff['bug'] = ''
         #### AG-GRID for testplan table ##############################################################################
+        cell_conditional_style = {
+            "styleConditions": [
+                {"condition": "params.value == 'בוצע'"   , "style": {"backgroundColor": "#196A4E", "color": "white"}},
+                {"condition": "params.value == 'תקול'"   , "style": {"backgroundColor": "#800000", "color": "white"}},
+                {"condition": "params.value == 'בריצה'"  , "style": {"backgroundColor": "#d2e034", "color": "black"}},
+                {"condition": "params.value == 'טרם החל'", "style": {"backgroundColor": "dark"   , "color": "white"}},
+            ]
+        }
         columnDefs             = [
             {
                 'headerName': "mtp_oid",
@@ -1162,16 +1181,21 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
                 'suppressToolPanel': True
             },
             {
-                'headerName': "test_steps",
-                'field': "test_steps",
-                'hide': True,
-                'suppressToolPanel': True
+                "headerName": "#",
+                "field": "test_name",
+                'width': 80,
+                'cellStyle': {
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
             },
             {
-                "headerName": "תיאור הבדיקה",
+                "headerName": "תיאןר הבדיקה",
                 "field": "story",
                 'width': 120,
                 'cellStyle': {
+                    'textAlign': 'right',
                     'direction': 'rtl',
                     'white-space': 'normal',
                     'word-break': 'break-word'
@@ -1191,13 +1215,12 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
             {
                 "headerName": "בודק",
                 "field": "tester",
-                'width': 80,
-                'cellStyle': {
-                    'textAlign': 'right',
-                    'direction': 'rtl',
-                    'white-space': 'normal',
-                    'word-break': 'break-word'
-                }
+                'width': 75,
+                "editable": True,
+                "cellEditor": "agSelectCellEditor",
+                "cellEditorParams": {
+                    "values": [Status.P_10, Status.P_11, Status.P_12, Status.P_02],
+                },
             },
             {
                 "headerName": "סטאטוס",
@@ -1231,7 +1254,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
             {
                 "headerName": "הערות",
                 "field": "comments",
-                'width': 200,
+                'width': 120,
                 "editable": True,
                 "cellEditorPopup": True,
                 "cellEditor": "agLargeTextCellEditor",
@@ -1243,7 +1266,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
                 }
             },
             {
-                "headerName": "דיווח תקלה",
+                "headerName": "צפייה בתקלות",
                 "field": "bug",
                 'width': 50,
                 'align': 'center',
@@ -1251,18 +1274,10 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
                 "cellRendererParams": {
                     "rightIcon": "fas fa-bug mt-1",
                     "outline": True,
-                    "color": "danger"
+                    "color": "primary"
                 },
             }
         ]
-        cell_conditional_style = {
-            "styleConditions": [
-                {"condition": "params.value == 'בוצע'"   , "style": {"backgroundColor": "#196A4E", "color": "white"}},
-                {"condition": "params.value == 'תקול'"   , "style": {"backgroundColor": "#800000", "color": "white"}},
-                {"condition": "params.value == 'בריצה'"  , "style": {"backgroundColor": "#d2e034", "color": "black"}},
-                {"condition": "params.value == 'טרם החל'", "style": {"backgroundColor": "dark"   , "color": "white"}},
-            ]
-        }
         defaultColDef          = {
             # "filter"        : True,
             # "floatingFilter": True,
@@ -1276,7 +1291,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
             'autoHeaderHeight': True,
             "cellStyle": cell_conditional_style,
         }
-        jacob_x = dag.AgGrid(
+        jacob_0 = dag.AgGrid(
             id="testplan-grid",
             columnSize="sizeToFit",
             className="ag-theme-balham headers1",
@@ -1285,16 +1300,16 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
             defaultColDef=defaultColDef,
             dashGridOptions={
                 "undoRedoCellEditing": True,
-                'enableRtl': True,
-                "rowSelection": "single",
-                "rowHeight": 48,
-                'verticalAlign': 'middle'
+                'enableRtl'          : True,
+                "rowSelection"       : "single",
+                "rowHeight"          : 48,
+                'verticalAlign'      : 'middle'
             },
-            style={'height': '100%'}
+            style = {'height': '100%'}
+            # style={'height': 375}
         )
         #### AG-GRID for testplan table ##############################################################################
-
-        jacob =  html.Div(
+        jacob_1 =  html.Div(
             dt.DataTable(
                 id='test-plans',
                 data=dff.to_dict('records'),
@@ -1315,7 +1330,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
             dir='ltr',
             lang='he',
         )
-        return jacob
+        return jacob_0
 
     def testplan_layout(db_document: dict, symbol: str) -> list:
         top_row, info_row, t_name = issue_document_layout(
@@ -1368,9 +1383,10 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
                         [
                             dbc.Alert('תכנית הבדיקות', class_name='fs-3'),
                             testplan_table_renderer(test_plans=test_plans)
-                        ]
+                        ],
+                        style={'height': 250}
                     ),
-                    class_name='col-8 mt-0',
+                    class_name='col mt-0',
                     style=row_style
                 ),
 
@@ -1396,13 +1412,13 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
                                             className="ml-auto"
                                         )
                                     ),
+                                    html.Div(id='uploaded-image-div', style={'max-width': '450px'})
                                 ],
-                                id="file-handler-modal",
-                            )
+                                id="file-handler-modal", size='xl'
+                            ),
                         ]
                     ),
                 ),
-
             ],
             class_name='mt-1',
             justify='center'
@@ -1414,8 +1430,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
                 fourth_row,
                 html.Div(id='testrun-value-changed'),
                 html.Div(style={'height': 200})
-            ]
-        )
+            ])
         test_plans = None
         return top_row, info_row, t_name, m_layout, test_plans
 
@@ -1638,198 +1653,197 @@ def parse_chart_event(pie_data, bar_data, pdu_data):
     return result
 
 ################################### MTP Callbacks ####################################################################
-@callback(
-    Output('test-plans', 'style_data_conditional'       ),
-    Input ('test-plans', 'derived_virtual_selected_rows'),
-)
-def highlight_selected_row(selRows):
-    if selRows is None:
-        return dash.no_update
-    return [
-        {"if": {"filter_query": "{{id}} ={}".format(i)}, "backgroundColor": "#0074D9", 'color': 'whitesmoke'}
-        for i in selRows
-    ]
+# @callback(
+#     Output('test-plans', 'style_data_conditional'       ),
+#     Input ('test-plans', 'derived_virtual_selected_rows'),
+# )
+# def highlight_selected_row(selRows):
+#     if selRows is None:
+#         return dash.no_update
+#     return [
+#         {"if": {"filter_query": "{{id}} ={}".format(i)}, "backgroundColor": "#0074D9", 'color': 'whitesmoke'}
+#         for i in selRows
+#     ]
 
 @callback(
     Output('testrun-grid-div' , 'children' ),
     Output('testrun-dataframe', 'data'     ),
 
-    Input('test-plans'    , 'selected_rows'),
-    Input('test-plans'    , 'data'         ),
-    State('mtp-test-plans', 'data'         ),
+    Input('testplan-grid', 'selectedRows'    ),
+    State('testplan-grid', 'rowData'         ),
+    Input('testplan-grid', 'cellValueChanged'),
 )
-def testrun_table_creation(selected_row, rows, selected_test_plans):
+def testrun_table_creation(selected_row, rows, value_changed):
     # disabled = True if ctx.triggered_id == 'testrun-button' else False
-
     if selected_row is None:
         return dash.no_update
-    else:
-        row = rows[selected_row[0]]
-        test_oid = ObjectId(row.get('test_oid'))
-        t_steps = pd.DataFrame(get_selected_testplan_data(test_plan_oid=test_oid)[0].get('test_steps'))
-        try:
-            t_steps    = t_steps[
-                ['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'expected', 'actual_result', 'status']
-            ]
-        except KeyError as ex:
-            t_steps    = t_steps[
-                ['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'expected', 'status']
-            ]
 
-        t_steps['mtp_oid' ] = t_steps['mtp_oid' ].astype(str)
-        t_steps['test_oid'] = t_steps['test_oid'].astype(str)
-        t_steps['step_oid'] = t_steps['step_oid'].astype(str)
-        t_steps['bug'     ] = ''
-        t_steps['pot'     ] = ''
-        ############ AG-GRID ##########################################################################################
-        columnDefs             = [
-            {
-                'headerName': "mtp_oid",
-                'field': "mtp",
-                'hide': True,
-                'suppressToolPanel': True
-            },
-            {
-                'headerName': "test_oid",
-                'field': "test_oid",
-                'hide': True,
-                'suppressToolPanel': True
-            },
-            {
-                'headerName': "step_oid",
-                'field': "step_oid",
-                'hide': True,
-                'suppressToolPanel': True
-            },
-            {
-                "headerName": "#",
-                "field": "step",
-                'width': 40,
-                'cellClass': 'text-center',
-            },
-            {
-                "headerName": "פעולה",
-                "field": "subject",
-                'width': 120,
-                'cellStyle': {
-                    'direction': 'rtl',
-                    'white-space': 'normal',
-                    'word-break': 'break-word'
-                }
-            },
-            {
-                "headerName": "תוצאה רצויה",
-                "field": "expected",
-                'width': 120,
-                'cellStyle': {
-                    'textAlign': 'right',
-                    'direction': 'rtl',
-                    'white-space': 'normal',
-                    'word-break': 'break-word'
-                }
-            },
-            {
-                "headerName": "תוצאה שנתקבלה",
-                "field": "actual_result",
-                'width': 200,
-                "editable": True,
-                "cellEditorPopup": True,
-                "cellEditor": "agLargeTextCellEditor",
-                'cellStyle': {
-                    'textAlign': 'right',
-                    'direction': 'rtl',
-                    'white-space': 'normal',
-                    'word-break': 'break-word'
-                }
-            },
-            {
-                "headerName": "סטאטוס",
-                "field": "status",
-                'width': 75,
-                "editable": True,
-                "cellEditor": "agSelectCellEditor",
-                "cellEditorParams": {
-                    "values": [Status.P_10, Status.P_11, Status.P_12, Status.P_02],
-                },
-            },
-            {
-                "headerName": "הערות",
-                "field": "comments",
-                'width': 200,
-                "editable": True,
-                "cellEditorPopup": True,
-                "cellEditor": "agLargeTextCellEditor",
-                'cellStyle': {
-                    'textAlign': 'center',
-                    'direction': 'rtl',
-                    'white-space': 'normal',
-                    'word-break': 'break-word'
-                }
-            },
-            {
-                "headerName": "דיווח תקלה",
-                "field": "bug",
-                'width': 50,
-                "cellRenderer": "DBC_Button",
-                'cellClass'   : 'text-center',
-                "cellRendererParams": {
-                    "rightIcon": "fas fa-bug mt-1",
-                    "outline"  : True,
-                    "color"    : "danger"
-                },
-            },
-            {
-                "headerName": "הוכחת בדיקה",
-                "field": "pot",
-                'width': 50,
-                'cellRenderer': "DBC_Button",
-                'cellClass'   : 'text-center',
-                "cellRendererParams": {
-                    "rightIcon": "fas fa-upload mt-1",
-                    "outline"  : True,
-                    "color": "success"
-                },
-            },
+    row = selected_row[0]
+    test_oid = ObjectId(row.get('test_oid'))
+    t_steps = pd.DataFrame(get_selected_testplan_data(test_plan_oid=test_oid)[0].get('test_steps'))
+    try:
+        t_steps    = t_steps[
+            ['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'expected', 'actual_result', 'status']
         ]
-        cell_conditional_style = {
-            "styleConditions": [
-                {"condition": "params.value == 'בוצע'"   , "style": {"backgroundColor": "#196A4E", "color": "white"}},
-                {"condition": "params.value == 'תקול'"   , "style": {"backgroundColor": "#800000", "color": "white"}},
-                {"condition": "params.value == 'בריצה'"  , "style": {"backgroundColor": "#d2e034", "color": "black"}},
-                {"condition": "params.value == 'טרם החל'", "style": {"backgroundColor": "dark"   , "color": "white"}},
-            ]
-        }
-        defaultColDef          = {
-            # "filter"        : True,
-            # "floatingFilter": True,
-            "resizable": True,
-            "sortable": True,
-            "editable": False,
-            "minWidth": 20,
-            'wrapText': True,
-            'autoHeight': True,
-            'wrapHeaderText': True,
-            'autoHeaderHeight': True,
-            "cellStyle": cell_conditional_style,
-        }
-        ############ AG-GRID END ######################################################################################
-        grid = dag.AgGrid(
-            id="testrun-grid",
-            columnSize="sizeToFit",
-            className="ag-theme-balham headers1",
-            columnDefs=columnDefs,
-            rowData=t_steps.to_dict("records"),
-            defaultColDef=defaultColDef,
-            dashGridOptions={
-                "undoRedoCellEditing": True,
-                'enableRtl': True,
-                "rowSelection": "single",
-                "rowHeight": 48,
-                'verticalAlign': 'middle'
-            },
-            style={'height': '100%'}
-        )
-        return grid, t_steps.to_dict('records')
+    except KeyError as ex:
+        t_steps    = t_steps[
+            ['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'expected', 'status']
+        ]
+
+    t_steps['mtp_oid' ] = t_steps['mtp_oid' ].astype(str)
+    t_steps['test_oid'] = t_steps['test_oid'].astype(str)
+    t_steps['step_oid'] = t_steps['step_oid'].astype(str)
+    t_steps['bug'     ] = ''
+    t_steps['pot'     ] = ''
+    ############ AG-GRID ##########################################################################################
+    columnDefs             = [
+          {
+              'headerName': "mtp_oid",
+              'field': "mtp",
+              'hide': True,
+              'suppressToolPanel': True
+          },
+          {
+              'headerName': "test_oid",
+              'field': "test_oid",
+              'hide': True,
+              'suppressToolPanel': True
+          },
+          {
+              'headerName': "step_oid",
+              'field': "step_oid",
+              'hide': True,
+              'suppressToolPanel': True
+          },
+          {
+              "headerName": "#",
+              "field": "step",
+              'width': 40,
+              'cellClass': 'text-center',
+          },
+          {
+              "headerName": "פעולה",
+              "field": "subject",
+              'width': 120,
+              'cellStyle': {
+                  'direction': 'rtl',
+                  'white-space': 'normal',
+                  'word-break': 'break-word'
+              }
+          },
+          {
+              "headerName": "תוצאה רצויה",
+              "field": "expected",
+              'width': 120,
+              'cellStyle': {
+                  'textAlign': 'right',
+                  'direction': 'rtl',
+                  'white-space': 'normal',
+                  'word-break': 'break-word'
+              }
+          },
+          {
+              "headerName": "תוצאה שנתקבלה",
+              "field": "actual_result",
+              'width': 200,
+              "editable": True,
+              "cellEditorPopup": True,
+              "cellEditor": "agLargeTextCellEditor",
+              'cellStyle': {
+                  'textAlign': 'right',
+                  'direction': 'rtl',
+                  'white-space': 'normal',
+                  'word-break': 'break-word'
+              }
+          },
+          {
+              "headerName": "סטאטוס",
+              "field": "status",
+              'width': 75,
+              "editable": True,
+              "cellEditor": "agSelectCellEditor",
+              "cellEditorParams": {
+                  "values": [Status.P_10, Status.P_11, Status.P_12, Status.P_02],
+              },
+          },
+          {
+              "headerName": "הערות",
+              "field": "comments",
+              'width': 200,
+              "editable": True,
+              "cellEditorPopup": True,
+              "cellEditor": "agLargeTextCellEditor",
+              'cellStyle': {
+                  'textAlign': 'center',
+                  'direction': 'rtl',
+                  'white-space': 'normal',
+                  'word-break': 'break-word'
+              }
+          },
+          {
+              "headerName": "דיווח תקלה",
+              "field": "bug",
+              'width': 50,
+              "cellRenderer": "DBC_Button",
+              'cellClass'   : 'text-center',
+              "cellRendererParams": {
+                  "rightIcon": "fas fa-bug mt-1",
+                  "outline"  : True,
+                  "color"    : "danger"
+              }
+          },
+          {
+              "headerName": "הוכחת בדיקה",
+              "field": "pot",
+              'width': 50,
+              'cellRenderer': "DBC_Button",
+              'cellClass'   : 'text-center',
+              "cellRendererParams": {
+                  "rightIcon": "fas fa-upload mt-1",
+                  "outline"  : True,
+                  "color"    : "success"
+              }
+          }
+                             ]
+    cell_conditional_style = {
+          "styleConditions": [
+              {"condition": "params.value == 'בוצע'"   , "style": {"backgroundColor": "#196A4E", "color": "white"}},
+              {"condition": "params.value == 'תקול'"   , "style": {"backgroundColor": "#800000", "color": "white"}},
+              {"condition": "params.value == 'בריצה'"  , "style": {"backgroundColor": "#d2e034", "color": "black"}},
+              {"condition": "params.value == 'טרם החל'", "style": {"backgroundColor": "dark"   , "color": "white"}},
+          ]
+    }
+    defaultColDef          = {
+          # "filter"        : True,
+      # "floatingFilter": True,
+          "resizable": True,
+          "sortable": True,
+          "editable": False,
+          "minWidth": 20,
+          'wrapText': True,
+          'autoHeight': True,
+          'wrapHeaderText': True,
+          'autoHeaderHeight': True,
+          "cellStyle": cell_conditional_style,
+    }
+    ############ AG-GRID END ######################################################################################
+    grid = dag.AgGrid(
+        id="testrun-grid",
+        columnDefs=columnDefs,
+        columnSize="sizeToFit",
+        style={'height': '100%'},
+        defaultColDef=defaultColDef,
+        rowData=t_steps.to_dict("records"),
+        className = "ag-theme-balham headers1",
+        dashGridOptions={
+             "undoRedoCellEditing": True,
+             'enableRtl': True,
+             "rowSelection": "single",
+             "rowHeight": 48,
+             'verticalAlign': 'middle'
+        },
+    )
+    return grid, t_steps.to_dict('records')
 
 @callback(
     Output('moshe-id', 'data'                 ),
@@ -1864,15 +1878,13 @@ def update_testrun_execution(_, row, data):
         upsert=True
     )
     print(f'matched: {result.matched_count} modified: {result.modified_count}')
-
     return None
 
 @callback(
     Output('testrun-value-changed'     , 'children'),
     Output("file-handler-modal"        , "is_open" ),
     Output("file-handler-modal-content", "children"),
-    # Output('url-testrun-step' , 'href'            ),
-    Output('step-row-data'    , 'data'            ),
+    Output('step-row-data'             , 'data'    ),
 
     Input ('testrun-grid'     , 'cellRendererData'),
     Input ('testrun-dataframe', 'data'            ),
@@ -1901,7 +1913,7 @@ def step_row_manager(step_row, testrun_data, close_click):
                     multiple=True,
                 ),
                 html.H2("File List"),
-                html.Ul(id="file-list"),
+                html.Ul(id="file-list-moshe"),
             ],
             style={"max-width": "500px"},
         )
@@ -1931,13 +1943,13 @@ def step_row_manager(step_row, testrun_data, close_click):
         return dash.no_update
 
 @callback(
-    Output('file-list'    , 'children'),
+    Output('file-list-moshe'    , 'children'),
 
     Input ('upload-data'  , 'filename'),
     Input ('upload-data'  , 'contents'),
     Input ('step-row-data', 'data'    )
 )
-def update_output(uploaded_filenames, uploaded_file_contents, step_row_data):
+def upload_files_manager(uploaded_filenames, uploaded_file_contents, step_row_data):
     """Save uploaded files and regenerate the file list."""
     action = step_row_data.get('action')
     oid = step_row_data.get('step_oid')
@@ -1958,13 +1970,59 @@ def update_output(uploaded_filenames, uploaded_file_contents, step_row_data):
             save_file(name, data)
 
     files = uploaded_files(file_directory)
+
     if len(files) == 0:
         return [html.Li("No files yet!")]
-    else:
-        return [
-            html.Li(
-                file_download_link(filename, file_directory)
-            ) for filename in files
-        ]
+
+    data = []
+    for filename in files:
+        image_path = file_directory.joinpath(filename).as_posix()
+        encoded_image = encode_image(image_path)
+        data.append(
+            {
+                # 'Image': html.Img(src='data:image/png;base64,{}'.format(encoded_image)),
+                'Image'   : f'data:image/png;base64,{encoded_image}',
+                'Filename': filename
+            }
+        )
+
+    df = pd.DataFrame(data)
+    df.drop_duplicates('Filename', inplace=True)
+    columnDefs = [
+        {
+            "headerName": "Thumbnail",
+            "field": "Image",
+            "cellRenderer": "ImgThumbnail",
+            "width": 85,
+        },
+        {
+            "headerName": "Image Name",
+            "field": "Filename",
+        },
+    ]
+
+    grid = dag.AgGrid(
+        id="uploaded-image-grid",
+        dashGridOptions={"rowHeight": 100},
+        rowData=df.to_dict("records"),
+        columnSize="sizeToFit",
+        columnDefs=columnDefs,
+        style={"height": 475},
+    )
+    return grid
+@callback(
+    Output("uploaded-image-div" , "children"        ),
+    Input ("uploaded-image-grid", "cellRendererData"),
+)
+def show_change(data):
+    if data:
+        return html.Img(
+            src=data["value"],
+            style={'max-width': 850}
+        )
+    return None
 
 ################################### ***END MTP Callbacks *** ##########################################################
+"""
+
+"""
