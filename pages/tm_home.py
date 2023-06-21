@@ -1140,20 +1140,6 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
         )
 
     def testplan_table_renderer(test_plans: list) -> dt.DataTable:
-        stories = []
-        for plan in test_plans:
-            story = {
-                'mtp_oid'  : plan.get('mtp_oid'  ),
-                'test_oid' : plan.get('test_oid' ),
-                'test_name': plan.get('test_name'),
-                'story'    : plan.get('story'    ),
-                'prereq'   : plan.get('prereq'   ),
-                'tester'   : plan.get('tester'   ),
-                'status'   : plan.get('status'   ),
-            }
-            stories.append(story)
-
-        dff = pd.DataFrame(stories)
         dff = pd.DataFrame(test_plans)
         dff.drop(['test_steps'], inplace=True, axis=1)
 
@@ -1311,27 +1297,6 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
             # style={'height': 375}
         )
         #### AG-GRID for testplan table ##############################################################################
-        jacob_1 =  html.Div(
-            dt.DataTable(
-                id='test-plans',
-                data=dff.to_dict('records'),
-                columns=t_columns[::-1],
-                css=table_css,
-                page_size=ms.PAGE_SIZE,
-                style_cell=test_tables_style_cell,
-                page_action='native',
-                style_header=header_style,
-                page_current=0,
-                hidden_columns=['id', 'mtp_oid', 'test_oid'],
-                row_selectable='single',
-                # markdown_options={"html": True},
-                style_cell_conditional=testplan_formatting,
-                style_data_conditional=test_tables_style_data_conditional,
-                style_header_conditional=test_tables_style_header_conditional,
-            ),
-            dir='ltr',
-            lang='he',
-        )
         return jacob_0
 
     def testplan_layout(db_document: dict, symbol: str) -> list:
@@ -1372,11 +1337,43 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
         )
         second_row = dbc.Row(  # תכלית בדיקה
             dbc.Col(
-                html.Div(simple_table_renderer(purpose)),
-                class_name='col-4 mt-0',
-                style=row_style
+                html.Div(
+                    [
+                        html.Div(
+                            dbc.Button(
+                                'הצג MTP',
+                                id='display-purpose-modal-button',
+                                outline=True,
+                                color='info',
+                                class_name='ml-auto'
+                            ),
+                            className='d-grid'
+                        ),
+                        dbc.Modal(
+                            [
+                                dbc.ModalHeader(
+                                    dbc.Alert("פירוט מטרת הבדיקה", color='info', class_name='fs-3'),
+                                ),
+                                dbc.ModalBody(
+                                    html.Div(
+                                        simple_table_renderer(purpose),
+                                        lang='he', dir='rtl'
+                                    ),
+                                ),
+                                dbc.ModalFooter(
+                                    dbc.Button(
+                                        "Close",
+                                        id="close-purpose-modal-button",
+                                        class_name="ml-auto"
+                                    )
+                                ),
+                            ],
+                            id="display-purpose-modal", size='lg'
+                        )
+                    ]
+                ),
             ),
-            justify='center'
+            class_name='col-2'
         )
         third_row = dbc.Row(
             [
@@ -1655,18 +1652,6 @@ def parse_chart_event(pie_data, bar_data, pdu_data):
     return result
 
 ################################### MTP Callbacks ####################################################################
-# @callback(
-#     Output('test-plans', 'style_data_conditional'       ),
-#     Input ('test-plans', 'derived_virtual_selected_rows'),
-# )
-# def highlight_selected_row(selRows):
-#     if selRows is None:
-#         return dash.no_update
-#     return [
-#         {"if": {"filter_query": "{{id}} ={}".format(i)}, "backgroundColor": "#0074D9", 'color': 'whitesmoke'}
-#         for i in selRows
-#     ]
-
 @callback(
     Output('testrun-grid-div' , 'children' ),
     Output('testrun-dataframe', 'data'     ),
@@ -2055,7 +2040,34 @@ def show_change(data):
         )
     return None
 
+@callback(
+    Output('display-purpose-modal', 'is_open'),
+
+    Input ('display-purpose-modal-button', 'n_clicks'),
+    Input ('close-purpose-modal-button'  , 'n_clicks'),
+)
+def display_purpose_modal(n1, n2):
+    if not ctx.triggered_id:
+        return dash.no_update
+
+    if ctx.triggered_id == 'display-purpose-modal-button':
+        return True
+
+    if ctx.triggered_id == 'close-purpose-modal-button':
+        return False
+
+
 ################################### ***END MTP Callbacks *** ##########################################################
 """
-
+# @callback(
+#     Output('test-plans', 'style_data_conditional'       ),
+#     Input ('test-plans', 'derived_virtual_selected_rows'),
+# )
+# def highlight_selected_row(selRows):
+#     if selRows is None:
+#         return dash.no_update
+#     return [
+#         {"if": {"filter_query": "{{id}} ={}".format(i)}, "backgroundColor": "#0074D9", 'color': 'whitesmoke'}
+#         for i in selRows
+#     ]
 """
