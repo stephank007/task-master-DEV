@@ -776,10 +776,10 @@ def layout():
                 dcc.Location(id="url-testrun-step", refresh="callback-nav"),
                 dcc.Store(id='filters-query'     ),
                 dcc.Store(id='clicked-chart'     ),
-                dcc.Store(id='previous-dropdowns'),
+                # dcc.Store(id='previous-dropdowns'),
                 dcc.Store(id='diff-store'        ),
                 dcc.Store(id='mtp-test-plans'    ),
-                dcc.Store(id='testrun-dataframe' ),
+                dcc.Store(id='testrun-grid-data' ),
                 dcc.Store(id='moshe-id'),
                 html.Br(),
                 top_row_form,
@@ -923,13 +923,14 @@ def highlight_selected_task(selected_row):
         ]
 
 @callback(
+    # dropdowns
     Output('users-callback'     , 'options'),
     Output('department-callback', 'options'),
     Output('status-callback'    , 'options'),
     Output('priority-callback'  , 'options'),
     Output('source-callback'    , 'options'),
     Output('wms-domain-callback', 'options'),
-
+    #
     Output('task-table'         , 'data'    ),
     Output('charts-pane'        , 'children'),
     Output('search-feedback'    , 'children'),
@@ -937,9 +938,9 @@ def highlight_selected_task(selected_row):
     Output('page-next'          , 'n_clicks'),
     Output('page-prev'          , 'n_clicks'),
     Output('filters-query'      , 'data'    ),
-    Output('previous-dropdowns' , 'data'    ),
+    # Output('previous-dropdowns' , 'data'    ),
 
-    Input ('previous-dropdowns' , 'data'    ),
+    # Input ('previous-dropdowns' , 'data'    ),
     Input ('filters-query'      , 'data'    ),
     Input ('clicked-chart'      , 'data'    ),
     Input ('page-next'          , 'n_clicks'),
@@ -947,10 +948,10 @@ def highlight_selected_task(selected_row):
     Input ('search-input'       , 'value'   ),
     [Input(v_callback, 'value') for v_callback in dropdown_callbacks],
     Input ('switch-pane'        , 'n_clicks'),
-    # prevent_initial_call=True
 )
 @timing_decorator
-def documents_portal(previous_dropdowns, filters_query, clicked_chart, b_next, b_prev, search_input, *args):
+# def documents_portal(previous_dropdowns, filters_query, clicked_chart, b_next, b_prev, search_input, *args):
+def documents_portal(filters_query, clicked_chart, b_next, b_prev, search_input, *args):
     if ctx.triggered_id == 'clicked-chart':
         filter_dict = filters_query.copy()
         filter_dict.update({'status': None})
@@ -1003,10 +1004,11 @@ def documents_portal(previous_dropdowns, filters_query, clicked_chart, b_next, b
     next_or_prev_selected = bool(xn | xp)
 
     display_charts = html.Div()
+    dropdown_options = None
     if next_or_prev_selected:   # this is for next and prev pages
         filters_1 = filter_dict.copy()
         df_tasks, documents = task_db.grand_filter_query(collection='tasks', grand_filter=filters_1, skip=skip)
-        dropdown_options    = previous_dropdowns
+        # dropdown_options    = previous_dropdowns
     else:
         filters_2 = filter_dict.copy()
         results   = task_db.multi_facet_query (collection='tasks', grand_filter=filters_2)
@@ -1029,7 +1031,7 @@ def documents_portal(previous_dropdowns, filters_query, clicked_chart, b_next, b
     # empty results
     if len(df_tasks) == 0:
         message = dbc.Alert(f'סליחה, יש לחדש חיפוש לא נמצאו ממצאים', color='danger', class_name='g-1' )
-        return [], [], [], [], [], [], None, display_charts, message, feedback, b_next, b_prev, filter_dict, dropdown_options
+        return [], [], [], [], [], [], None, display_charts, message, feedback, b_next, b_prev, filter_dict #, dropdown_options
 
     message   = dbc.Alert(fa_documents_number(documents=documents), color='success', class_name='g-1')
     records = df_tasks.to_dict('records')
@@ -1042,7 +1044,7 @@ def documents_portal(previous_dropdowns, filters_query, clicked_chart, b_next, b
         dropdown_options[4], \
         dropdown_options[5], \
         records            , \
-        display_charts, message, feedback, b_next, b_prev, filter_dict, dropdown_options
+        display_charts, message, feedback, b_next, b_prev, filter_dict # , dropdown_options
 
 @callback(
     Output('document-detail-row', 'children'     ),
@@ -1058,11 +1060,11 @@ def documents_portal(previous_dropdowns, filters_query, clicked_chart, b_next, b
     Input ('task-table'         , 'selected_rows'),
     State ('task-table'         , 'data'         ),
 )
-def document_master_portal(switch_pane, selected_row, rows):  # render the update pane only
+def document_master_portal(switch_pane, selected_row, rows):  # renders the update pane only
     """
     her we manage the sorts of doctype update flow. main focus is given to test flow
     :param switch_pane:
-    :param selected_row:
+    :param selected_row: from task-table
     :param rows:
     :return:
         document_detail_row, selected_id, owner_name, record_info,
@@ -1300,7 +1302,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
         return jacob_0
 
     def testplan_layout(db_document: dict, symbol: str) -> list:
-        top_row, info_row, t_name = issue_document_layout(
+        top_row, info_row, t_name = issue_layout(
             db_document=db_document,
             symbol=symbol
         )
@@ -1326,11 +1328,11 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
         first_row = dbc.Row(
             [
                 dbc.Col(
-                    dbc.Alert(f'Test Cycle: {cycle}', color='secondary', class_name='fs-3 text-center'),
+                    dbc.Alert(f'סבב בדיקות: {cycle}', color='secondary', class_name='fs-3 text-center'),
                     class_name='col-6 m-0 g-0'
                 ),
                 dbc.Col(
-                    dbc.Alert(f'MTP ID: {mtp_id}'   , color='secondary', class_name='fs-3 text-center'),
+                    dbc.Alert(f'מזהה תכנית הבדיקה: {mtp_id}'   , color='secondary', class_name='fs-3 text-center'),
                     class_name='col-6 m-0 g-0'
                 )
             ]
@@ -1433,7 +1435,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
         test_plans = None
         return top_row, info_row, t_name, m_layout, test_plans
 
-    def issue_document_layout(db_document: dict, symbol: str) -> list:
+    def issue_layout(db_document: dict, symbol: str) -> list:
         try:
             update_object = db_document.get('update')
             update_date   = update_object.get('lastUpdated')
@@ -1486,7 +1488,8 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
     t_plans             = None
     mtp_layout          = None
 
-    if ctx.triggered_id == 'task-table' and ctx.inputs.get('task-table.selected_rows'):
+    # if ctx.triggered_id == 'task-table' and ctx.inputs.get('task-table.selected_rows'):
+    if ctx.inputs.get('task-table.selected_rows'):
         selected_row = rows[selected_row[0]]
         selected_id  = selected_row['_id']
         db_record    = task_db.get_document_by_oid(collection='tasks', oid=selected_id)
@@ -1499,7 +1502,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
         match doctype:
             case 'issue':
                 doctype_symbol = 'fas fa-book-open fa-lg text-info'
-                document_detail_row, record_info, owner_name = issue_document_layout(
+                document_detail_row, record_info, owner_name = issue_layout(
                     db_document=db_record,
                     symbol=doctype_symbol
                 )
@@ -1511,13 +1514,13 @@ def document_master_portal(switch_pane, selected_row, rows):  # render the updat
                 )
             case 'm4n-docx':
                 doctype_symbol = 'far fa-edit fa-lg text-info'
-                document_detail_row, record_info, owner_name = issue_document_layout(
+                document_detail_row, record_info, owner_name = issue_layout(
                     db_document=db_record,
                     symbol=doctype_symbol
                 )
             case _:
                 doctype_symbol = 'far fa-edit fa-lg text-info'
-                document_detail_row, record_info, owner_name = issue_document_layout(
+                document_detail_row, record_info, owner_name = issue_layout(
                     db_document=db_record,
                     symbol=doctype_symbol
                 )
@@ -1654,7 +1657,7 @@ def parse_chart_event(pie_data, bar_data, pdu_data):
 ################################### MTP Callbacks ####################################################################
 @callback(
     Output('testrun-grid-div' , 'children' ),
-    Output('testrun-dataframe', 'data'     ),
+    Output('testrun-grid-data', 'data'     ),
 
     Input('testplan-grid', 'selectedRows'    ),
     State('testplan-grid', 'rowData'         ),
@@ -1665,9 +1668,7 @@ def testrun_table_creation(selected_row, rows, _):
     if selected_row is None:
         return dash.no_update
 
-    ### update block
-    moshe = ctx.inputs
-
+    ### update test_plan block
     if ctx.inputs.get('testplan-grid.cellValueChanged'):
         test_oid  = ObjectId(_.get('data').get('test_oid'))
         mtp_oid   = ObjectId(_.get('data').get('mtp_oid' ))
@@ -1694,14 +1695,6 @@ def testrun_table_creation(selected_row, rows, _):
     row = selected_row[0]
     test_oid = ObjectId(row.get('test_oid'))
     t_steps = pd.DataFrame(get_selected_testplan_data(test_plan_oid=test_oid)[0].get('test_steps'))
-#     try:
-#         t_steps    = t_steps[
-#             ['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'expected', 'actual_result', 'status']
-#         ]
-#     except KeyError as ex:
-#         t_steps    = t_steps[
-#             ['mtp_oid', 'test_oid', 'step_oid', 'step', 'subject', 'expected', 'status']
-#         ]
 
     t_steps['mtp_oid' ] = t_steps['mtp_oid' ].astype(str)
     t_steps['test_oid'] = t_steps['test_oid'].astype(str)
@@ -1842,12 +1835,12 @@ def testrun_table_creation(selected_row, rows, _):
     ############ AG-GRID END ######################################################################################
     grid = dag.AgGrid(
         id="testrun-grid",
+        style={'height': '100%'},
+        rowData=t_steps.to_dict("records"),
+        className="ag-theme-balham headers1",
         columnDefs=columnDefs,
         columnSize="sizeToFit",
-        style={'height': '100%'},
         defaultColDef=defaultColDef,
-        rowData=t_steps.to_dict("records"),
-        className = "ag-theme-balham headers1",
         dashGridOptions={
              "undoRedoCellEditing": True,
              'enableRtl': True,
@@ -1905,7 +1898,7 @@ def update_testrun_execution(_, row, data):
     Output('step-row-data'             , 'data'    ),
 
     Input ('testrun-grid'     , 'cellRendererData'),
-    Input ('testrun-dataframe', 'data'            ),
+    Input ('testrun-grid-data', 'data'            ),
     Input ('close'            , 'n_clicks'        ),
 
 )
