@@ -71,6 +71,12 @@ class Priority(str, ExtendedEnum):
     S_03 = 'גבוה'
     S_04 = 'קריטי'
 
+class Severity(str, ExtendedEnum):
+    S_01 = 'נמוך'
+    S_02 = 'בינוני'
+    S_03 = 'גבוה'
+    S_04 = 'קריטי'
+
 class SAPDomainEnum(str, ExtendedEnum):
     D_01  = '01: מלאי ואחסנה'
     D_02  = '02: שרשרת אספקה'

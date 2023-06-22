@@ -17,7 +17,7 @@ from schemas     import tm_services   as sv
 from typing      import Tuple, Any
 from devtools    import debug
 from collections import Counter
-from schemas.fields       import Priority, SAPDomainEnum, SAPProcessEnum, Status, StorageType
+from schemas.fields       import Priority, SAPDomainEnum, SAPProcessEnum, Status, StorageType, Severity
 from schemas.mongo_schema import timing_decorator, dt_date
 
 # db.collection.createIndex( { "$**": "text" } )
@@ -42,6 +42,14 @@ backward = html.Span(
     ]
 )
 
+domain_ids = {
+    'אספקה נכנסת' : '01',
+    'אספקה יוצאת' : '02',
+    'ניהול המלאי' : '03',
+    'ניהול הפצה'  : '04',
+    'ניהול החצר'  : '05',
+    'תשתיות'      : '06'
+}
 ban      = '<i class="fas fa-ban     text-mute    mt-3 d-flex flex-row justify-content-center"></i>'
 progress = '<i class="fas fa-running text-body    mt-3 d-flex flex-row justify-content-center"></i>'
 problem  = '<i class="fas fa-bug     text-white   mt-3 d-flex flex-row justify-content-center"></i>'
@@ -885,6 +893,33 @@ def pane_manger(selected, clicked: int):
         return div_hide, div_hide, div_hide, div_show
 
 @callback(
+    Output('bug-report-switch'      , 'style'           ),
+    Input ('switch-bug-close-button', 'n_clicks'        ),
+    Input ('testrun-grid'           , 'cellRendererData')
+)
+def bug_pane_manager(n1, n2):
+    moshe_0 = ctx.inputs
+    moshe_1 = ctx.triggered
+    moshe_2 = ctx.states
+
+    print(ctx.triggered_id, ctx.triggered[0].get('value'))
+    triggered_column = None
+    if not ctx.triggered_id:
+        return dash.no_update
+
+    if ctx.triggered_id == 'testrun-grid' and ctx.triggered[0].get('value') is not None:
+        triggered_column = ctx.triggered[0].get('value').get('colId')
+
+    if triggered_column == 'report':
+        return div_show
+
+    if ctx.triggered_id == 'testrun-grid' and ctx.triggered[0].get('value') is None:
+        return div_hide
+
+    if ctx.triggered_id == 'switch-bug-close-button':
+        return div_hide
+
+@callback(
     Output('spinner-roll', 'children'     ),
     Input ('task-table'  , 'loading_state')
 )
@@ -1059,8 +1094,8 @@ def documents_portal(filters_query, clicked_chart, b_next, b_prev, search_input,
     Input ('switch-pane'        , 'n_clicks'     ),
     Input ('task-table'         , 'selected_rows'),
     State ('task-table'         , 'data'         ),
-)
-def document_master_portal(switch_pane, selected_row, rows):  # renders the update pane only
+) # issue and testplan layouts
+def document_master_portal(switch_pane, selected_row, rows):  # renders the update pane and test execution
     """
     her we manage the sorts of doctype update flow. main focus is given to test flow
     :param switch_pane:
@@ -1141,7 +1176,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # renders the upda
             css=[{'selector': '.show-hide', 'rule': 'display: none'}]
         )
 
-    def testplan_table_renderer(test_plans: list) -> dt.DataTable:
+    def testplan_table_renderer(test_plans: list) -> dt.DataTable:  # layout of the test panes and test grids
         dff = pd.DataFrame(test_plans)
         dff.drop(['test_steps'], inplace=True, axis=1)
 
@@ -1298,8 +1333,135 @@ def document_master_portal(switch_pane, selected_row, rows):  # renders the upda
             style = {'height': '100%'}
             # style={'height': 375}
         )
+
+        bug_report_columns_def = [
+            {
+                "headerName": "עדיפות",
+                "field": "priority",
+                'width': 150,
+                "editable": True,
+                "cellEditor": "agSelectCellEditor",
+                "cellEditorParams": {"values": [Priority.S_01, Priority.S_02, Priority.S_03, Priority.S_04]},
+            },
+            {
+                "headerName": "חמרה",
+                "field": "severity",
+                'width': 150,
+                "editable": True,
+                "cellEditor": "agSelectCellEditor",
+                "cellEditorParams": {"values": [Priority.S_01, Priority.S_02, Priority.S_03, Priority.S_04]},
+            },
+            {
+                "headerName": "הערות",
+                "field": "comments",
+                'width': 180,
+                "editable": True,
+                "cellEditorPopup": True,
+                "cellEditor": "agLargeTextCellEditor",
+                'cellStyle': {
+                    'textAlign': 'center',
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            }
+        ]
+        bug_record = {
+            'priority': Priority.S_01,
+            'severity': Severity.S_01,
+        }
+        bug_dff = pd.DataFrame([bug_record])
+
+        bug_report_grid = dag.AgGrid(
+            id="bug-report-grid",
+            columnSize="sizeToFit",
+            className="ag-theme-balham headers1",
+            columnDefs=bug_report_columns_def,
+            rowData=bug_dff.to_dict("records"),
+            defaultColDef=defaultColDef,
+            dashGridOptions={
+                "undoRedoCellEditing": True,
+                'enableRtl': True,
+                "rowSelection": "single",
+                "rowHeight": 48,
+                'verticalAlign': 'middle'
+            },
+            # style={'height': '100%'}
+            style={'height': 150}
+        )
+        # TODO: Please add callback and insert a bug report object to the testrun row
+
+        bug_report_layout = html.Div(
+            id='bug-report-switch',
+            children=[
+                dbc.Row(
+                    dbc.Col(
+                        html.Div(
+                            [
+                                dbc.Button(
+                                    id='switch-bug-close-button',
+                                    type='submit',
+                                    class_name='btn btn-danger fs-2 fas fa-window-close mt-2'
+                                ),
+                                dbc.Tooltip('close bug pane', target='switch-bug-pane', placement='bottom'),
+                            ], className='text-start',
+                        ),
+                    ),
+                    class_name='bg-danger my-2 mx-1'
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            html.Div(bug_report_grid),
+                            # class_name='m-0 overflow-auto border border-warning',
+                            class_name = 'col-4',
+                        ),
+                        dbc.Col(
+                            dbc.Button(
+                                'הצג ושלח דו״ח תקלה',
+                                id='report-bug-button',
+                                outline=True,
+                                color='danger',
+                                class_name='ml-auto'
+                            ),
+                            className='d-grid, col-3 fs-3'
+                        )
+                    ]
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        dbc.Modal(
+                            [
+                                dbc.ModalHeader(
+                                    dbc.Alert("דוח תקלה", color='info', class_name='fs-3'),
+                                ),
+                                dbc.ModalBody(
+                                    html.Div(
+                                        dcc.Markdown(
+                                            """
+                                            # Hello World
+                                            """
+                                        ),
+                                        lang='he', dir='rtl'
+                                    ),
+                                ),
+                                dbc.ModalFooter(
+                                    dbc.Button(
+                                        "Close",
+                                        id="close-bug-report-button",
+                                        class_name="ml-auto"
+                                    )
+                                ),
+                            ],
+                            id="display-bug-report", size='xl'
+                        )
+                    )
+                )
+            ],
+            style={'display': 'none'}
+        )
         #### AG-GRID for testplan table ##############################################################################
-        return jacob_0
+        return jacob_0, bug_report_layout
 
     def testplan_layout(db_document: dict, symbol: str) -> list:
         top_row, info_row, t_name = issue_layout(
@@ -1325,6 +1487,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # renders the upda
                 }
             )
 
+        testplan, bug_report_layout = testplan_table_renderer(test_plans=test_plans)
         first_row = dbc.Row(
             [
                 dbc.Col(
@@ -1383,7 +1546,8 @@ def document_master_portal(switch_pane, selected_row, rows):  # renders the upda
                     html.Div(
                         [
                             dbc.Alert('תכנית הבדיקות', class_name='fs-3'),
-                            testplan_table_renderer(test_plans=test_plans)
+                            # testplan_table_renderer(test_plans=test_plans),
+                            testplan
                         ],
                         style={'height': 250}
                     ),
@@ -1395,35 +1559,29 @@ def document_master_portal(switch_pane, selected_row, rows):  # renders the upda
             justify='center',
             class_name='mt-1'
         )
-        fourth_row = dbc.Row(
+        fourth_row = html.Div(
             [
                 dbc.Alert('הרצת הבדיקה', class_name='fs-3 text-center'),
-                dbc.Col(
-                    html.Div(
-                        [
-                            html.Div(id='testrun-grid-div', style={'height': 820}),
-                            dbc.Modal(
-                                [
-                                    dbc.ModalHeader("More information about selected row"),
-                                    dbc.ModalBody  (id="file-handler-modal-content"),
-                                    dbc.ModalFooter(
-                                        dbc.Button(
-                                            "Close",
-                                            id="close",
-                                            className="ml-auto"
-                                        )
-                                    ),
-                                    html.Div(id='uploaded-image-div', style={'max-width': '450px'})
-                                ],
-                                id="file-handler-modal", size='xl'
-                            ),
-                        ]
-                    ),
+                bug_report_layout,
+                html.Div(id='testrun-grid-div', style={'height': 820}),
+                dbc.Modal(
+                    [
+                        dbc.ModalHeader("More information about selected row"),
+                        dbc.ModalBody(id="file-handler-modal-content"),
+                        dbc.ModalFooter(
+                            dbc.Button(
+                                "Close",
+                                id="close",
+                                className="ml-auto"
+                            )
+                        ),
+                        html.Div(id='uploaded-image-div', style={'max-width': '450px'})
+                    ],
+                    id="file-handler-modal", size='xl'
                 ),
-            ],
-            class_name='mt-1',
-            justify='center'
+            ]
         )
+
         m_layout = html.Div(id='testplan-layout', children=[
                 first_row ,
                 second_row,
@@ -1701,6 +1859,7 @@ def testrun_table_creation(selected_row, rows, _):
     t_steps['step_oid'] = t_steps['step_oid'].astype(str)
     t_steps['bug'     ] = ''
     t_steps['pot'     ] = ''
+    t_steps['report'  ] = ''
     ############ AG-GRID ##########################################################################################
     columnDefs             = [
           {
@@ -1780,14 +1939,14 @@ def testrun_table_creation(selected_row, rows, _):
               "cellEditorPopup": True,
               "cellEditor": "agLargeTextCellEditor",
               'cellStyle': {
-                  'textAlign': 'center',
+                  'textAlign': 'right',
                   'direction': 'rtl',
                   'white-space': 'normal',
                   'word-break': 'break-word'
               }
           },
           {
-              "headerName": "דיווח תקלה",
+              "headerName": "צילום תקלה",
               "field": "bug",
               'width': 50,
               "cellRenderer": "DBC_Button",
@@ -1809,6 +1968,18 @@ def testrun_table_creation(selected_row, rows, _):
                   "outline"  : True,
                   "color"    : "success"
               }
+          },
+          {
+              "headerName": "דיווח תקלה",
+              "field": "report",
+              'width': 50,
+              'cellRenderer': "DBC_Button",
+              'cellClass': 'text-center',
+              "cellRendererParams": {
+                  "rightIcon": "fas fa-file mt-1",
+                  "outline": True,
+                  "color": "info"
+              }
           }
                              ]
     cell_conditional_style = {
@@ -1820,17 +1991,17 @@ def testrun_table_creation(selected_row, rows, _):
           ]
     }
     defaultColDef          = {
-          # "filter"        : True,
-      # "floatingFilter": True,
-          "resizable": True,
-          "sortable": True,
-          "editable": False,
-          "minWidth": 20,
-          'wrapText': True,
-          'autoHeight': True,
-          'wrapHeaderText': True,
-          'autoHeaderHeight': True,
-          "cellStyle": cell_conditional_style,
+         # "filter"        : True,
+         # "floatingFilter": True,
+         "resizable": True,
+         "sortable": True,
+         "editable": False,
+         "minWidth": 20,
+         'wrapText': True,
+         'autoHeight': True,
+         'wrapHeaderText': True,
+         'autoHeaderHeight': True,
+         "cellStyle": cell_conditional_style,
     }
     ############ AG-GRID END ######################################################################################
     grid = dag.AgGrid(
@@ -1862,10 +2033,6 @@ def update_testrun_execution(_, row, data):
     # print(ctx.triggered_id)
     if _ is None:
         return dash.no_update
-
-    moshe_0 = ctx.inputs
-    moshe_1 = ctx.triggered
-    moshe_2 = ctx.states
 
     step_oid  = ObjectId(_.get('data').get('step_oid'))
     test_oid  = ObjectId(_.get('data').get('test_oid'))
@@ -1902,7 +2069,7 @@ def update_testrun_execution(_, row, data):
     Input ('close'            , 'n_clicks'        ),
 
 )
-def step_row_manager(step_row, testrun_data, close_click):
+def step_row_manager(step_row, testrun_data, close_click):  # handles testrun triggers: report and file_load
     def file_handler_layout():
         return html.Div(
             [
@@ -1935,7 +2102,8 @@ def step_row_manager(step_row, testrun_data, close_click):
     if ctx.triggered_id == "close":
         return dash.no_update, False, dash.no_update, dash.no_update
 
-    if ctx.triggered_id == 'testrun-grid':
+    triggered_column = ctx.triggered[0].get('value').get('colId')
+    if ctx.triggered_id == 'testrun-grid' and triggered_column != 'report':
         step_row_data = testrun_data[step_row.get('rowIndex')]
         action = step_row.get('colId')
         step_row_data.update({'action': action})
@@ -2049,6 +2217,21 @@ def display_purpose_modal(n1, n2):
     if ctx.triggered_id == 'close-purpose-modal-button':
         return False
 
+@callback(
+    Output('display-bug-report'    , 'is_open'),
+
+    Input('report-bug-button'      , 'n_clicks'),
+    Input('close-bug-report-button', 'n_clicks')
+)
+def bug_report_modal(n1, n2):
+    if not ctx.triggered_id:
+        return dash.no_update
+
+    if ctx.triggered_id == 'report-bug-button':
+        return True
+
+    if ctx.triggered_id == 'close-bug-report-button':
+        return False
 
 ################################### ***END MTP Callbacks *** ##########################################################
 """
