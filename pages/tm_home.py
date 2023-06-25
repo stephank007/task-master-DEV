@@ -788,7 +788,7 @@ def layout():
                 dcc.Store(id='diff-store'        ),
                 dcc.Store(id='mtp-test-plans'    ),
                 dcc.Store(id='testrun-grid-data' ),
-                dcc.Store(id='moshe-id'),
+                dcc.Store(id='moshe-id'          ),
                 html.Br(),
                 top_row_form,
                 html.Br(),
@@ -891,33 +891,6 @@ def pane_manger(selected, clicked: int):
         return div_show, div_show, div_show, div_hide
     else:
         return div_hide, div_hide, div_hide, div_show
-
-@callback(
-    Output('bug-report-switch'      , 'style'           ),
-    Input ('switch-bug-close-button', 'n_clicks'        ),
-    Input ('testrun-grid'           , 'cellRendererData')
-)
-def bug_pane_manager(n1, n2):
-    moshe_0 = ctx.inputs
-    moshe_1 = ctx.triggered
-    moshe_2 = ctx.states
-
-    print(ctx.triggered_id, ctx.triggered[0].get('value'))
-    triggered_column = None
-    if not ctx.triggered_id:
-        return dash.no_update
-
-    if ctx.triggered_id == 'testrun-grid' and ctx.triggered[0].get('value') is not None:
-        triggered_column = ctx.triggered[0].get('value').get('colId')
-
-    if triggered_column == 'report':
-        return div_show
-
-    if ctx.triggered_id == 'testrun-grid' and ctx.triggered[0].get('value') is None:
-        return div_hide
-
-    if ctx.triggered_id == 'switch-bug-close-button':
-        return div_hide
 
 @callback(
     Output('spinner-roll', 'children'     ),
@@ -1094,8 +1067,8 @@ def documents_portal(filters_query, clicked_chart, b_next, b_prev, search_input,
     Input ('switch-pane'        , 'n_clicks'     ),
     Input ('task-table'         , 'selected_rows'),
     State ('task-table'         , 'data'         ),
-) # issue and testplan layouts
-def document_master_portal(switch_pane, selected_row, rows):  # renders the update pane and test execution
+) # issue and testplan layouts renders the update pane and test execution
+def document_master_portal(switch_pane, selected_row, rows):  #
     """
     her we manage the sorts of doctype update flow. main focus is given to test flow
     :param switch_pane:
@@ -1176,7 +1149,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # renders the upda
             css=[{'selector': '.show-hide', 'rule': 'display: none'}]
         )
 
-    def testplan_table_renderer(test_plans: list) -> dt.DataTable:  # layout of the test panes and test grids
+    def testplan_table_renderer(test_plans: list) -> dt.DataTable:  # testplan layout, testplan-grid, bug-report-grid, bug_report_layout
         dff = pd.DataFrame(test_plans)
         dff.drop(['test_steps'], inplace=True, axis=1)
 
@@ -1334,63 +1307,6 @@ def document_master_portal(switch_pane, selected_row, rows):  # renders the upda
             # style={'height': 375}
         )
 
-        bug_report_columns_def = [
-            {
-                "headerName": "עדיפות",
-                "field": "priority",
-                'width': 150,
-                "editable": True,
-                "cellEditor": "agSelectCellEditor",
-                "cellEditorParams": {"values": [Priority.S_01, Priority.S_02, Priority.S_03, Priority.S_04]},
-            },
-            {
-                "headerName": "חמרה",
-                "field": "severity",
-                'width': 150,
-                "editable": True,
-                "cellEditor": "agSelectCellEditor",
-                "cellEditorParams": {"values": [Priority.S_01, Priority.S_02, Priority.S_03, Priority.S_04]},
-            },
-            {
-                "headerName": "הערות",
-                "field": "comments",
-                'width': 180,
-                "editable": True,
-                "cellEditorPopup": True,
-                "cellEditor": "agLargeTextCellEditor",
-                'cellStyle': {
-                    'textAlign': 'center',
-                    'direction': 'rtl',
-                    'white-space': 'normal',
-                    'word-break': 'break-word'
-                }
-            }
-        ]
-        bug_record = {
-            'priority': Priority.S_01,
-            'severity': Severity.S_01,
-        }
-        bug_dff = pd.DataFrame([bug_record])
-
-        bug_report_grid = dag.AgGrid(
-            id="bug-report-grid",
-            columnSize="sizeToFit",
-            className="ag-theme-balham headers1",
-            columnDefs=bug_report_columns_def,
-            rowData=bug_dff.to_dict("records"),
-            defaultColDef=defaultColDef,
-            dashGridOptions={
-                "undoRedoCellEditing": True,
-                'enableRtl': True,
-                "rowSelection": "single",
-                "rowHeight": 48,
-                'verticalAlign': 'middle'
-            },
-            # style={'height': '100%'}
-            style={'height': 150}
-        )
-        # TODO: Please add callback and insert a bug report object to the testrun row
-
         bug_report_layout = html.Div(
             id='bug-report-switch',
             children=[
@@ -1412,7 +1328,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # renders the upda
                 dbc.Row(
                     [
                         dbc.Col(
-                            html.Div(bug_report_grid),
+                            html.Div(id='bug-report-grid-div'),
                             # class_name='m-0 overflow-auto border border-warning',
                             class_name = 'col-4',
                         ),
@@ -1432,9 +1348,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # renders the upda
                     dbc.Col(
                         dbc.Modal(
                             [
-                                dbc.ModalHeader(
-                                    dbc.Alert("דוח תקלה", color='info', class_name='fs-3'),
-                                ),
+                                dbc.Alert("דוח תקלה", color='info', class_name='fs-3 text-end'),
                                 dbc.ModalBody(
                                     html.Div(
                                         dcc.Markdown(
@@ -1516,9 +1430,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # renders the upda
                         ),
                         dbc.Modal(
                             [
-                                dbc.ModalHeader(
-                                    dbc.Alert("פירוט מטרת הבדיקה", color='info', class_name='fs-3'),
-                                ),
+                                dbc.Alert("פירוט מטרת הבדיקה", color='info', class_name='fs-3 text-end'),
                                 dbc.ModalBody(
                                     html.Div(
                                         simple_table_renderer(purpose),
@@ -1571,7 +1483,7 @@ def document_master_portal(switch_pane, selected_row, rows):  # renders the upda
                         dbc.ModalFooter(
                             dbc.Button(
                                 "Close",
-                                id="close",
+                                id='close-file-handler-modal',
                                 className="ml-auto"
                             )
                         ),
@@ -1587,7 +1499,6 @@ def document_master_portal(switch_pane, selected_row, rows):  # renders the upda
                 second_row,
                 third_row ,
                 fourth_row,
-                html.Div(id='testrun-value-changed'),
                 html.Div(style={'height': 200})
             ])
         test_plans = None
@@ -1732,9 +1643,9 @@ def owner_notes_renderer(selected_row_id, note_rows, date_rows):
 @callback(
     Output('update-result', 'children'),
 
-    Input('switch-pane'   , 'n_clicks'),
-    Input('task-table'    , 'derived_virtual_selected_rows'),
-    Input('search-input'  , 'value'   ),
+    Input ('switch-pane'  , 'n_clicks'),
+    Input ('task-table'   , 'derived_virtual_selected_rows'),
+    Input ('search-input' , 'value'   ),
     Input ('update-button', 'n_clicks'),
     Input ('record-id'    , 'data'    ),
     Input ('active-user'  , 'data'    ),
@@ -1814,8 +1725,8 @@ def parse_chart_event(pie_data, bar_data, pdu_data):
 
 ################################### MTP Callbacks ####################################################################
 @callback(
-    Output('testrun-grid-div' , 'children' ),
-    Output('testrun-grid-data', 'data'     ),
+    Output('testrun-grid-div' , 'children'),
+    Output('testrun-grid-data', 'data'    ),
 
     Input('testplan-grid', 'selectedRows'    ),
     State('testplan-grid', 'rowData'         ),
@@ -2023,53 +1934,90 @@ def testrun_table_creation(selected_row, rows, _):
     return grid, t_steps.to_dict('records')
 
 @callback(
-    Output('moshe-id', 'data'                 ),
+    Output('moshe-id', 'data'     ),
 
     Input ('testrun-grid' , 'cellValueChanged'),
-    Input ('testrun-grid' , 'selectedRows'    ),
-    State ('testrun-grid' , 'rowData'         ),
+    Input ('bug-attributes-grid' , 'cellValueChanged'),
+    Input ('testrun-selected-row', 'data'            )
+
 )
-def update_testrun_execution(_, row, data):
-    # print(ctx.triggered_id)
-    if _ is None:
+# def db_update_testrun_manager(_, row, data, bug_attributes_row, testrun_selected_row):
+def db_update_testrun_manager(_, bug_attributes_row, testrun_selected_row):
+    if _ is None and bug_attributes_row is None:
         return dash.no_update
 
-    step_oid  = ObjectId(_.get('data').get('step_oid'))
-    test_oid  = ObjectId(_.get('data').get('test_oid'))
-    mtp_oid   = ObjectId(_.get('data').get('mtp_oid' ))
-    old_value = _.get('old_value')
-    new_value = _.get('value'    )
-    col_name  = _.get('colId'    )
+    def db_update_testrun_row(record: dict, selector: str):
+        old_value = None
+        new_value = None
+        col_name  = None
 
-    db = task_db.get_db()
-    result = db.tasks.update_one(
-        {'mtp_object.mtp_oid': mtp_oid},
-        {
-            "$set": {
-                f"mtp_object.test_plan.$[plan].test_steps.$[step].{col_name}": new_value
-            }
-        },
-        array_filters=[
-            {'plan.test_oid': test_oid},
-            {'step.step_oid': step_oid}
-        ],
-        upsert=True
-    )
-    print(f'matched: {result.matched_count} modified: {result.modified_count}')
+        mtp_oid   = None
+        step_oid  = None
+        test_oid  = None
+
+        if selector is None:
+            step_oid = ObjectId(record.get('data').get('step_oid'))
+            test_oid = ObjectId(record.get('data').get('test_oid'))
+            mtp_oid  = ObjectId(record.get('data').get('mtp_oid'))
+
+            old_value = record.get('old_value')
+            new_value = record.get('value')
+            col_name  = record.get('colId')
+        if selector == 'attributes':
+            step_oid = ObjectId(record.get('step_oid'))
+            test_oid = ObjectId(record.get('test_oid'))
+            mtp_oid  = ObjectId(record.get('mtp_oid'))
+
+            old_value = bug_attributes_row.get('old_value')
+            new_value = bug_attributes_row.get('value')
+            col_name  = bug_attributes_row.get('colId')
+
+        db = task_db.get_db()
+        result = db.tasks.update_one(
+            {'mtp_object.mtp_oid': mtp_oid},
+            {
+                "$set": {
+                    f"mtp_object.test_plan.$[plan].test_steps.$[step].{col_name}": new_value
+                }
+            },
+            array_filters=[
+                {'plan.test_oid': test_oid},
+                {'step.step_oid': step_oid}
+            ],
+            upsert=True
+        )
+        print(f'matched: {result.matched_count} modified: {result.modified_count}')
+        return None
+
+    moshe_0 = ctx.inputs
+    moshe_1 = ctx.triggered
+    moshe_2 = ctx.states
+
+    if _ is not None:
+        db_update_testrun_row(record=_, selector=None)
+
+    if bug_attributes_row is not None:
+        db_update_testrun_row(record=testrun_selected_row, selector='attributes')
+
     return None
 
+
 @callback(
-    Output('testrun-value-changed'     , 'children'),
     Output("file-handler-modal"        , "is_open" ),
     Output("file-handler-modal-content", "children"),
-    Output('step-row-data'             , 'data'    ),
+    Output('testrun-selected-row'      , 'data'    ),
 
-    Input ('testrun-grid'     , 'cellRendererData'),
-    Input ('testrun-grid-data', 'data'            ),
-    Input ('close'            , 'n_clicks'        ),
+    Output('bug-report-grid-div'       , 'children'),  # the grid in the bug report modal pane
+    Output('bug-report-switch'         , 'style'   ),  # show/hide
 
-)
-def step_row_manager(step_row, testrun_data, close_click):  # handles testrun triggers: report and file_load
+    Input ('testrun-grid'            , 'selectedRows'    ),
+    Input ('testrun-grid'            , 'cellRendererData'),
+    Input ('testrun-grid-data'       , 'data'            ),
+    Input ('close-file-handler-modal', 'n_clicks'        ),
+    Input ('switch-bug-close-button' , 'n_clicks'        ),
+
+)  # handles testrun triggers: report and file_load
+def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1):
     def file_handler_layout():
         return html.Div(
             [
@@ -2095,42 +2043,114 @@ def step_row_manager(step_row, testrun_data, close_click):  # handles testrun tr
             ],
             style={"max-width": "500px"},
         )
+    def prepare_bug_report_grid(record: dict) -> html.Div:
+        # priority, severity, comments
+        p = record.get('priority')
+        s = record.get('severity')
+        c = record.get('a_comments')
+        bug_record  = {
+            'priority'  : p,
+            'severity'  : s,
+            'a_comments': c,
+        }
+        columns_def = [
+            {
+                "headerName": "עדיפות",
+                "field": "priority",
+                'width': 150,
+                "editable": True,
+                "cellEditor": "agSelectCellEditor",
+                "cellEditorParams": {"values": [Priority.S_01, Priority.S_02, Priority.S_03, Priority.S_04]},
+            },
+            {
+                "headerName": "חמרה",
+                "field": "severity",
+                'width': 150,
+                "editable": True,
+                "cellEditor": "agSelectCellEditor",
+                "cellEditorParams": {"values": [Priority.S_01, Priority.S_02, Priority.S_03, Priority.S_04]},
+            },
+            {
+                "headerName": "הערות נוספות",
+                "field": "a_comments",
+                'width': 180,
+                "editable": True,
+                "cellEditorPopup": True,
+                "cellEditor": "agLargeTextCellEditor",
+                'cellStyle': {
+                    'textAlign': 'right',
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            }
+        ]
+        bug_dff     = pd.DataFrame([bug_record])
 
-    if step_row is None:
+        bug_report_grid = dag.AgGrid(
+            id="bug-attributes-grid",
+            columnSize="sizeToFit",
+            className="ag-theme-balham headers1",
+            columnDefs=columns_def,
+            rowData=bug_dff.to_dict("records"),
+            # defaultColDef=defaultColDef,
+            dashGridOptions={
+                "undoRedoCellEditing": True,
+                'enableRtl': True,
+                "rowSelection": "single",
+                "rowHeight": 48,
+                'verticalAlign': 'middle'
+            },
+            # style={'height': '100%'}
+            style={'height': 150}
+        )
+        return html.Div(bug_report_grid)
+
+    if selected_row is None:
         return dash.no_update
-
-    if ctx.triggered_id == "close":
-        return dash.no_update, False, dash.no_update, dash.no_update
-
-    triggered_column = ctx.triggered[0].get('value').get('colId')
-    if ctx.triggered_id == 'testrun-grid' and triggered_column != 'report':
-        step_row_data = testrun_data[step_row.get('rowIndex')]
-        action = step_row.get('colId')
-        step_row_data.update({'action': action})
-        if 'actual_result' in step_row_data.keys():
-            if step_row_data.get('actual_result') is None:
-                return dash.no_update
-            else:
-                del step_row_data['subject']
-                del step_row_data['expected']
-                del step_row_data['actual_result']
-                del step_row_data['pot']
-                del step_row_data['step']
-                # return json.dumps(step_row), f'/home/file_handler/{step_row_data}', step_row_data
-                return json.dumps(step_row), True, file_handler_layout(), step_row_data
     else:
-        return dash.no_update
+        step_row_data = selected_row[0]
+
+    if ctx.triggered_id == "close-file-handler-modal":
+        return False, dash.no_update, dash.no_update, dash.no_update, div_hide
+
+    if ctx.triggered_id == "switch-bug-close-button":
+        return dash.no_update, dash.no_update, step_row_data, dash.no_update, div_hide
+
+    if 'actual_result' in step_row_data.keys():
+        if step_row_data.get('actual_result') is None:
+            return dash.no_update
+
+    try:
+        triggered_column = ctx.triggered[0].get('value').get('colId')
+        match triggered_column:
+            case 'report':
+                bug_div = prepare_bug_report_grid(record=step_row_data)
+                return dash.no_update, dash.no_update, step_row_data, bug_div, div_show
+            case _:
+                action = step_row.get('colId')
+                step_row_data.update({'action': action})
+                del step_row_data['subject'      ]
+                del step_row_data['expected'     ]
+                del step_row_data['actual_result']
+                del step_row_data['pot'          ]
+                del step_row_data['step'         ]
+                return True, file_handler_layout(), step_row_data, dash.no_update, div_hide
+    except Exception as ex:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, div_hide
 
 @callback(
-    Output('file-list-moshe'    , 'children'),
+    Output('file-list-moshe'    , 'children' ),
 
-    Input ('upload-data'  , 'filename'),
-    Input ('upload-data'  , 'contents'),
-    Input ('step-row-data', 'data'    )
+    Input ('upload-data'         , 'filename'),
+    Input ('upload-data'         , 'contents'),
+    Input ('testrun-selected-row', 'data'    )
 )
 def upload_files_manager(uploaded_filenames, uploaded_file_contents, step_row_data):
     """Save uploaded files and regenerate the file list."""
     action = step_row_data.get('action')
+    if action is None:
+        return dash.no_update
     oid = step_row_data.get('step_oid')
     parent  = sv.UPLOAD_DIRECTORY.joinpath(oid)
     bug_dir = sv.UPLOAD_DIRECTORY.joinpath(parent, 'bug')

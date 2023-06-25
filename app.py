@@ -152,7 +152,7 @@ try:
         dcc.Store(id='active-user'),
         dcc.Store(id='record-id'  ),
         dcc.Store(id='owner-name' ),
-        dcc.Store(id='step-row-data'),
+        dcc.Store(id='testrun-selected-row'),
 
         dcc.Location(id="url", refresh=True),
         dcc.Location(id="url-1", refresh=True),
