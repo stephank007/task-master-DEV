@@ -1377,6 +1377,95 @@ def document_master_portal(switch_pane, selected_row, rows):  #
         #### AG-GRID for testplan table ##############################################################################
         return jacob_0, bug_report_layout
 
+    def mtp_grid_maker(record: dict) -> dag.AgGrid:
+        mtp_object = record.get('mtp_object')
+
+        ps = []
+        purpose = mtp_object.get('purpose')
+        for p in purpose:
+            ps.append(p.get('תכלית'))
+
+        purpose = '\n'.join(ps)
+        grid_record   = {
+            'subject'    : record.get('subject'),
+            'purpose'    : purpose,
+            'due_date'   : record.get('due_date'),
+            'owner'      : record.get('full_name'),
+            'priority'   : mtp_object.get('priority'),
+            'complexity' : mtp_object.get('complexity'),
+        }
+        columnDefs    = [
+            {
+                'headerName': 'תיאןר ',
+                'field': 'subject',
+                'width': 80,
+                'editable': True,
+                'cellEditorPopup': True,
+                'cellEditor': 'agLargeTextCellEditor',
+                'cellStyle': {
+                    'textAlign': 'right',
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            },
+            {
+                'headerName': 'מהות הבדיקה',
+                'field': 'purpose',
+                'width': 100,
+                'editable': True,
+                'cellEditorPopup': True,
+                'cellEditor': 'agLargeTextCellEditor',
+                'cellStyle': {
+                    'textAlign': 'right',
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            },
+            {
+                'headerName': 'בודק',
+                'field': 'owner',
+                'width': 35,
+            },
+            {
+                'headerName': 'תג"ב',
+                'field': 'due_date',
+                'width': 35,
+            },
+
+        ]
+        defaultColDef = {
+            # "filter"        : True,
+            # "floatingFilter": True,
+            "resizable": True,
+            "sortable": True,
+            "editable": False,
+            "minWidth": 20,
+            'wrapText': True,
+            'autoHeight': True,
+            'wrapHeaderText': True,
+            'autoHeaderHeight': True,
+            # "cellStyle": cell_conditional_style,
+        }
+        return dag.AgGrid(
+            id="mtp-grid",
+            columnSize="sizeToFit",
+            className="ag-theme-balham headers1",
+            columnDefs=columnDefs,
+            rowData=[grid_record],
+            defaultColDef=defaultColDef,
+            dashGridOptions={
+                "undoRedoCellEditing": True,
+                'enableRtl'          : True,
+                "rowSelection"       : "single",
+                "rowHeight"          : 48,
+                'verticalAlign'      : 'middle'
+            },
+            # style = {'height': '100%'}
+            style={'height': 375}
+        )
+
     def testplan_layout(db_document: dict, symbol: str) -> list:
         top_row, info_row, t_name = issue_layout(
             db_document=db_document,
@@ -1433,7 +1522,7 @@ def document_master_portal(switch_pane, selected_row, rows):  #
                                 dbc.Alert("פירוט מטרת הבדיקה", color='info', class_name='fs-3 text-end'),
                                 dbc.ModalBody(
                                     html.Div(
-                                        simple_table_renderer(purpose),
+                                        mtp_grid_maker(record=db_document),
                                         lang='he', dir='rtl'
                                     ),
                                 ),
@@ -1445,7 +1534,7 @@ def document_master_portal(switch_pane, selected_row, rows):  #
                                     )
                                 ),
                             ],
-                            id="display-purpose-modal", size='lg'
+                            id="display-purpose-modal", size='xl'
                         )
                     ]
                 ),
