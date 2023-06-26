@@ -1,4 +1,5 @@
 import os
+import cv2
 import dash
 import json
 import base64
@@ -2203,35 +2204,48 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
         oid = step_row_data.get('step_oid')
         parent  = sv.UPLOAD_DIRECTORY.joinpath(oid)
         bug_dir = sv.UPLOAD_DIRECTORY.joinpath(parent, 'bug')
+        tmp_png = './assets/xyz.png'
 
 
         files = uploaded_files(file_directory=bug_dir)
         for f in files:
-            print(f)
+            file_name = bug_dir.joinpath(f).as_posix()
+            if file_name.endswith('png'):
+                with open(file_name, 'rb') as image_file:
+                    image_file = image_file.read()
+                try:
+                    image = cv2.imread(file_name, cv2.IMREAD_UNCHANGED)
+                except Exception as ex:
+                    print(ex)
+                height, width = image.shape[:2]
+                ratio = height / width
 
-        print(pathlib.Path().absolute())
+                reduced = 250
+                cv2_image = cv2.imread(file_name)
+                resized_image = cv2.resize(cv2_image, (reduced, int(round(reduced * ratio))))
+                cv2.imwrite(tmp_png, resized_image)
+
+                encoded_image = encode_image(tmp_png)
+                # encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+
         bug_dir = f'/assets/testing/{oid}/bug/'
         file_name = bug_dir + '1687380023-pngwing.com.png'
-        # image = f'<img src={file_name} width="50%" height="50%"/>'
-        # < img src = "https://mma.prnewswire.com/media/1513369/Educative_Logo.jpg" width = "60%" height = "30%" >
-        #
-        # ![The San Juan Mountains are beautiful!](/ assets / images / san-juan-mountains.jpg "San Juan Mountains")
-
         moshe = f'![moshe picture]({file_name} "hello mr. man")'
-        """
-        ps = []
-        [ps.append(p.get('תכלית')) for p in mtp_object.get('purpose')]
-        purpose = '\n'.join(ps)
-        """
+        moshe = f'![moshe picture](/assets/xyz.png "hello mr. man")'
+
+        image_src  = f'data:image/png;base64,{encoded_image}',
+        image_html = html.Img(src=image_src[0], style={'max-width': '300px'})
+        # image_html = f'<img src={image_src[0]}>'
+
         title = f'## דיווח תקלה:{record.get("comments")}'
         markdown = f"""
         {title}\n\n
-        ### עדיפות: {p}  
-        ### חמרה  : {s}  
-        ### הערה נוספת : {c}  
-        {moshe}
+        - עדיפות: {p}  
+        - חמרה  : {s}  
+        - הערה נוספת : {c}  
         """
-        return dcc.Markdown(markdown)
+        return html.Div('moshe')
+        # return dcc.Markdown(markdown)
 
     if selected_row is None:
         return dash.no_update
@@ -2257,8 +2271,8 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
                     return False, dash.no_update, dash.no_update, dash.no_update, div_hide, dash.no_update
                 else:
                     bug_div = bug_report_grid_maker(record=step_row_data)
-                    md      = bug_report_md_maker(record=step_row_data)
-                    return dash.no_update, dash.no_update, step_row_data, bug_div, div_show, md
+                    # md      = bug_report_md_maker(record=step_row_data)
+                    return dash.no_update, dash.no_update, step_row_data, bug_div, div_show, dash.no_update
             case _:
                 action = step_row.get('colId')
                 step_row_data.update({'action': action})
@@ -2387,6 +2401,11 @@ def bug_report_modal(n1, n2):
         return False
 
 ################################### ***END MTP Callbacks *** ##########################################################
+"""
+ps = []
+[ps.append(p.get('תכלית')) for p in mtp_object.get('purpose')]
+purpose = '\n'.join(ps)
+"""
 """
 # @callback(
 #     Output('test-plans', 'style_data_conditional'       ),
