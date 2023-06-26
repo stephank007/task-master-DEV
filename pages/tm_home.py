@@ -3,6 +3,7 @@ import dash
 import json
 import base64
 import datetime
+import pathlib
 import pandas as pd
 import plotly.express       as px
 import schemas.mongo_schema as ms
@@ -749,7 +750,7 @@ def uploaded_files(file_directory):
     """List the files in the upload directory."""
     files = []
     for filename in os.listdir(file_directory):
-        files.append(filename)
+        # files.append(filename)
         fn = file_directory.joinpath(filename).as_posix()
         try:
             with open(fn, 'rb') as fr:
@@ -774,6 +775,7 @@ def encode_image(image_path):
     with open(image_path, 'rb') as file:
         encoded_string = base64.b64encode(file.read()).decode('utf-8')
     return encoded_string
+
 
 ######################################################################################################################
 def layout():
@@ -1149,11 +1151,10 @@ def document_master_portal(switch_pane, selected_row, rows):  #
             css=[{'selector': '.show-hide', 'rule': 'display: none'}]
         )
 
-    def testplan_table_renderer(test_plans: list) -> dt.DataTable:  # testplan layout, testplan-grid, bug-report-grid, bug_report_layout
+    def testplan_table_maker(test_plans: list) -> dag.AgGrid:  # testplan-grid
         dff = pd.DataFrame(test_plans)
         dff.drop(['test_steps'], inplace=True, axis=1)
 
-        t_columns = [{'name': i, 'id': i} for i in dff.columns]
         dff['id' ] = dff.index
         dff['bug'] = ''
         #### AG-GRID for testplan table ##############################################################################
@@ -1289,7 +1290,8 @@ def document_master_portal(switch_pane, selected_row, rows):  #
             'autoHeaderHeight': True,
             "cellStyle": cell_conditional_style,
         }
-        jacob_0 = dag.AgGrid(
+        #### AG-GRID for testplan table ##############################################################################
+        return dag.AgGrid(
             id="testplan-grid",
             columnSize="sizeToFit",
             className="ag-theme-balham headers1",
@@ -1307,85 +1309,13 @@ def document_master_portal(switch_pane, selected_row, rows):  #
             # style={'height': 375}
         )
 
-        bug_report_layout = html.Div(
-            id='bug-report-switch',
-            children=[
-                dbc.Row(
-                    dbc.Col(
-                        html.Div(
-                            [
-                                dbc.Button(
-                                    id='switch-bug-close-button',
-                                    type='submit',
-                                    class_name='btn btn-danger fs-2 fas fa-window-close mt-2'
-                                ),
-                                dbc.Tooltip('close bug pane', target='switch-bug-pane', placement='bottom'),
-                            ], className='text-start',
-                        ),
-                    ),
-                    class_name='bg-danger my-2 mx-1'
-                ),
-                dbc.Row(
-                    [
-                        dbc.Col(
-                            html.Div(id='bug-report-grid-div'),
-                            # class_name='m-0 overflow-auto border border-warning',
-                            class_name = 'col-4',
-                        ),
-                        dbc.Col(
-                            dbc.Button(
-                                'הצג ושלח דו״ח תקלה',
-                                id='report-bug-button',
-                                outline=True,
-                                color='danger',
-                                class_name='ml-auto'
-                            ),
-                            className='d-grid, col-3 fs-3'
-                        )
-                    ]
-                ),
-                dbc.Row(
-                    dbc.Col(
-                        dbc.Modal(
-                            [
-                                dbc.Alert("דוח תקלה", color='info', class_name='fs-3 text-end'),
-                                dbc.ModalBody(
-                                    html.Div(
-                                        dcc.Markdown(
-                                            """
-                                            # Hello World
-                                            """
-                                        ),
-                                        lang='he', dir='rtl'
-                                    ),
-                                ),
-                                dbc.ModalFooter(
-                                    dbc.Button(
-                                        "Close",
-                                        id="close-bug-report-button",
-                                        class_name="ml-auto"
-                                    )
-                                ),
-                            ],
-                            id="display-bug-report", size='xl'
-                        )
-                    )
-                )
-            ],
-            style={'display': 'none'}
-        )
-        #### AG-GRID for testplan table ##############################################################################
-        return jacob_0, bug_report_layout
-
     def mtp_grid_maker(record: dict) -> dag.AgGrid:
         mtp_object = record.get('mtp_object')
 
         ps = []
-        purpose = mtp_object.get('purpose')
-        for p in purpose:
-            ps.append(p.get('תכלית'))
-
+        [ps.append(p.get('תכלית')) for p in mtp_object.get('purpose')]
         purpose = '\n'.join(ps)
+
         grid_record   = {
             'subject'    : record.get('subject'),
             'purpose'    : purpose,
@@ -1466,13 +1396,78 @@ def document_master_portal(switch_pane, selected_row, rows):  #
             style={'height': 375}
         )
 
-    def testplan_layout(db_document: dict, symbol: str) -> list:
+    def bug_report_layout() -> html.Div():
+        # bug_report_grid is prepared by bug_report_grid_maker() within step_row_event_manager()
+        return html.Div(
+            id='bug-report-switch',
+            children=[
+                dbc.Row(
+                    dbc.Col(
+                        html.Div(
+                            [
+                                dbc.Button(
+                                    id='switch-bug-close-button',
+                                    type='submit',
+                                    class_name='btn btn-danger fs-2 fas fa-window-close mt-2'
+                                ),
+                                dbc.Tooltip('close bug pane', target='switch-bug-pane', placement='bottom'),
+                            ], className='text-start',
+                        ),
+                    ),
+                    class_name='bg-danger my-2 mx-1'
+                ),
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            html.Div(id='bug-report-grid-div'),
+                            class_name = 'col-6',
+                        ),
+                        dbc.Col(
+                            dbc.Button(
+                                'הצג ושלח דו״ח תקלה',
+                                id='report-bug-button',
+                                outline=True,
+                                color='danger',
+                                class_name='ml-auto'
+                            ),
+                            className='d-grid, col-3 fs-3'
+                        )
+                    ]
+                ),
+                dbc.Row(
+                    dbc.Col(
+                        dbc.Modal(
+                            [
+                                dbc.Alert("דוח תקלה", color='info', class_name='fs-3 text-end'),
+                                dbc.ModalBody(
+                                    html.Div(
+                                        id='bug-report-md',
+                                        lang='he', dir='rtl'
+                                    ),
+                                ),
+                                dbc.ModalFooter(
+                                    dbc.Button(
+                                        "Close",
+                                        id="close-bug-report-button",
+                                        class_name="ml-auto"
+                                    )
+                                ),
+                            ],
+                            id="display-bug-report", size='xl'
+                        )
+                    )
+                )
+            ],
+            style={'display': 'none'}
+        )
+
+    def testplan_master_layout(db_document: dict, symbol: str) -> list:
         top_row, info_row, t_name = issue_layout(
             db_document=db_document,
             symbol=symbol
         )
 
-        cycle      = db_document.get('reference'  ).get('secret_1'  )
+        cycle      = db_document.get('reference' ).get('secret_1'   )
         mtp_id     = db_document.get('mtp_object').get('mtp_id'     )
         prod_key   = db_document.get('mtp_object').get('product_key')
         complexity = db_document.get('mtp_object').get('complexity' )
@@ -1490,7 +1485,7 @@ def document_master_portal(switch_pane, selected_row, rows):  #
                 }
             )
 
-        testplan, bug_report_layout = testplan_table_renderer(test_plans=test_plans)
+        testplan = testplan_table_maker(test_plans=test_plans)
         first_row = dbc.Row(
             [
                 dbc.Col(
@@ -1503,7 +1498,7 @@ def document_master_portal(switch_pane, selected_row, rows):  #
                 )
             ]
         )
-        second_row = dbc.Row(  # תכלית בדיקה
+        second_row = dbc.Row(  # MTP Grid
             dbc.Col(
                 html.Div(
                     [
@@ -1541,13 +1536,12 @@ def document_master_portal(switch_pane, selected_row, rows):  #
             ),
             class_name='col-2'
         )
-        third_row = dbc.Row(
+        third_row = dbc.Row(  # Testplan Grid
             [
                 dbc.Col(
                     html.Div(
                         [
                             dbc.Alert('תכנית הבדיקות', class_name='fs-3'),
-                            # testplan_table_renderer(test_plans=test_plans),
                             testplan
                         ],
                         style={'height': 250}
@@ -1560,27 +1554,30 @@ def document_master_portal(switch_pane, selected_row, rows):  #
             justify='center',
             class_name='mt-1'
         )
-        fourth_row = html.Div(
+        fourth_row = html.Div( # Bug Report Grid Window Pane, and Test Run Grid
             [
                 dbc.Alert('הרצת הבדיקה', class_name='fs-3 text-center'),
-                bug_report_layout,
-                html.Div(id='testrun-grid-div', style={'height': 820}),
-                dbc.Modal(
-                    [
-                        dbc.ModalHeader("More information about selected row"),
-                        dbc.ModalBody(id="file-handler-modal-content"),
-                        dbc.ModalFooter(
-                            dbc.Button(
-                                "Close",
-                                id='close-file-handler-modal',
-                                className="ml-auto"
-                            )
-                        ),
-                        html.Div(id='uploaded-image-div', style={'max-width': '450px'})
-                    ],
-                    id="file-handler-modal", size='xl'
+                bug_report_layout(),  # it is nicer when bug report layout pane comes before the testrun grid
+                html.Div(
+                    id='testrun-grid-div',
+                    style={'height': 820}
                 ),
             ]
+        )
+        fifth_row = dbc.Modal( # Files upload
+            [
+                dbc.Alert('העלאת צילומי מסך', color='info', class_name='fs-3 text-end'),
+                dbc.ModalBody(id="file-handler-modal-content"),
+                dbc.ModalFooter(
+                    dbc.Button(
+                        "Close",
+                        id='close-file-handler-modal',
+                        className="ml-auto"
+                    )
+                ),
+                html.Div(id='uploaded-image-div', style={'max-width': '450px'})
+            ],
+            id="file-handler-modal", size='xl'
         )
 
         m_layout = html.Div(id='testplan-layout', children=[
@@ -1588,6 +1585,7 @@ def document_master_portal(switch_pane, selected_row, rows):  #
                 second_row,
                 third_row ,
                 fourth_row,
+                fifth_row ,
                 html.Div(style={'height': 200})
             ])
         test_plans = None
@@ -1666,7 +1664,7 @@ def document_master_portal(switch_pane, selected_row, rows):  #
                 )
             case 'test':
                 doctype_symbol = 'fas fa-flask fa-lg text-info'
-                document_detail_row, record_info, owner_name, mtp_layout, t_plans = testplan_layout(
+                document_detail_row, record_info, owner_name, mtp_layout, t_plans = testplan_master_layout(
                     db_document=db_record,
                     symbol=doctype_symbol
                 )
@@ -2025,7 +2023,7 @@ def testrun_table_creation(selected_row, rows, _):
 @callback(
     Output('moshe-id', 'data'     ),
 
-    Input ('testrun-grid' , 'cellValueChanged'),
+    Input ('testrun-grid'        , 'cellValueChanged'),
     Input ('bug-attributes-grid' , 'cellValueChanged'),
     Input ('testrun-selected-row', 'data'            )
 
@@ -2098,6 +2096,7 @@ def db_update_testrun_manager(_, bug_attributes_row, testrun_selected_row):
 
     Output('bug-report-grid-div'       , 'children'),  # the grid in the bug report modal pane
     Output('bug-report-switch'         , 'style'   ),  # show/hide
+    Output('bug-report-md'             , 'children'),  # Markdown
 
     Input ('testrun-grid'            , 'selectedRows'    ),
     Input ('testrun-grid'            , 'cellRendererData'),
@@ -2105,8 +2104,9 @@ def db_update_testrun_manager(_, bug_attributes_row, testrun_selected_row):
     Input ('close-file-handler-modal', 'n_clicks'        ),
     Input ('switch-bug-close-button' , 'n_clicks'        ),
 
-)  # handles testrun triggers: report and file_load
+)  # handles testrun button events: bug report and file_load
 def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1):
+
     def file_handler_layout():
         return html.Div(
             [
@@ -2132,8 +2132,8 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
             ],
             style={"max-width": "500px"},
         )
-    def prepare_bug_report_grid(record: dict) -> html.Div:
-        # priority, severity, comments
+
+    def bug_report_grid_maker(record: dict) -> html.Div:
         p = record.get('priority')
         s = record.get('severity')
         c = record.get('a_comments')
@@ -2146,7 +2146,7 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
             {
                 "headerName": "עדיפות",
                 "field": "priority",
-                'width': 150,
+                'width': 100,
                 "editable": True,
                 "cellEditor": "agSelectCellEditor",
                 "cellEditorParams": {"values": [Priority.S_01, Priority.S_02, Priority.S_03, Priority.S_04]},
@@ -2154,7 +2154,7 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
             {
                 "headerName": "חמרה",
                 "field": "severity",
-                'width': 150,
+                'width': 100,
                 "editable": True,
                 "cellEditor": "agSelectCellEditor",
                 "cellEditorParams": {"values": [Priority.S_01, Priority.S_02, Priority.S_03, Priority.S_04]},
@@ -2162,7 +2162,7 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
             {
                 "headerName": "הערות נוספות",
                 "field": "a_comments",
-                'width': 180,
+                'width': 280,
                 "editable": True,
                 "cellEditorPopup": True,
                 "cellEditor": "agLargeTextCellEditor",
@@ -2187,13 +2187,51 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
                 "undoRedoCellEditing": True,
                 'enableRtl': True,
                 "rowSelection": "single",
-                "rowHeight": 48,
+                "rowHeight": 150,
                 'verticalAlign': 'middle'
             },
             # style={'height': '100%'}
-            style={'height': 150}
+            style={'height': 180}
         )
         return html.Div(bug_report_grid)
+
+    def bug_report_md_maker(record: dict) -> dcc.Markdown:
+        p = record.get('priority')
+        s = record.get('severity')
+        c = record.get('a_comments')
+
+        oid = step_row_data.get('step_oid')
+        parent  = sv.UPLOAD_DIRECTORY.joinpath(oid)
+        bug_dir = sv.UPLOAD_DIRECTORY.joinpath(parent, 'bug')
+
+
+        files = uploaded_files(file_directory=bug_dir)
+        for f in files:
+            print(f)
+
+        print(pathlib.Path().absolute())
+        bug_dir = f'/assets/testing/{oid}/bug/'
+        file_name = bug_dir + '1687380023-pngwing.com.png'
+        # image = f'<img src={file_name} width="50%" height="50%"/>'
+        # < img src = "https://mma.prnewswire.com/media/1513369/Educative_Logo.jpg" width = "60%" height = "30%" >
+        #
+        # ![The San Juan Mountains are beautiful!](/ assets / images / san-juan-mountains.jpg "San Juan Mountains")
+
+        moshe = f'![moshe picture]({file_name} "hello mr. man")'
+        """
+        ps = []
+        [ps.append(p.get('תכלית')) for p in mtp_object.get('purpose')]
+        purpose = '\n'.join(ps)
+        """
+        title = f'## דיווח תקלה:{record.get("comments")}'
+        markdown = f"""
+        {title}\n\n
+        ### עדיפות: {p}  
+        ### חמרה  : {s}  
+        ### הערה נוספת : {c}  
+        {moshe}
+        """
+        return dcc.Markdown(markdown)
 
     if selected_row is None:
         return dash.no_update
@@ -2201,10 +2239,10 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
         step_row_data = selected_row[0]
 
     if ctx.triggered_id == "close-file-handler-modal":
-        return False, dash.no_update, dash.no_update, dash.no_update, div_hide
+        return False, dash.no_update, dash.no_update, dash.no_update, div_hide, dash.no_update
 
     if ctx.triggered_id == "switch-bug-close-button":
-        return dash.no_update, dash.no_update, step_row_data, dash.no_update, div_hide
+        return dash.no_update, dash.no_update, step_row_data, dash.no_update, div_hide, dash.no_update
 
     if 'actual_result' in step_row_data.keys():
         if step_row_data.get('actual_result') is None:
@@ -2214,8 +2252,13 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
         triggered_column = ctx.triggered[0].get('value').get('colId')
         match triggered_column:
             case 'report':
-                bug_div = prepare_bug_report_grid(record=step_row_data)
-                return dash.no_update, dash.no_update, step_row_data, bug_div, div_show
+                step_status = step_row_data.get('status')
+                if step_status != Status.P_12:
+                    return False, dash.no_update, dash.no_update, dash.no_update, div_hide, dash.no_update
+                else:
+                    bug_div = bug_report_grid_maker(record=step_row_data)
+                    md      = bug_report_md_maker(record=step_row_data)
+                    return dash.no_update, dash.no_update, step_row_data, bug_div, div_show, md
             case _:
                 action = step_row.get('colId')
                 step_row_data.update({'action': action})
@@ -2224,9 +2267,9 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
                 del step_row_data['actual_result']
                 del step_row_data['pot'          ]
                 del step_row_data['step'         ]
-                return True, file_handler_layout(), step_row_data, dash.no_update, div_hide
+                return True, file_handler_layout(), step_row_data, dash.no_update, div_hide, dash.no_update
     except Exception as ex:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, div_hide
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, div_hide, dash.no_update
 
 @callback(
     Output('file-list-moshe'    , 'children' ),
@@ -2275,6 +2318,7 @@ def upload_files_manager(uploaded_filenames, uploaded_file_contents, step_row_da
         )
 
     df = pd.DataFrame(data)
+    df.sort_values(['Filename'], inplace=True)
     df.drop_duplicates('Filename', inplace=True)
     columnDefs = [
         {

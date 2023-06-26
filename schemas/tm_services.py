@@ -8,7 +8,7 @@ from datetime import datetime
 
 root      = pathlib.Path(__file__).parent.parent
 input_path  = root.joinpath('resources', 'data', '_in' )
-output_path = root.joinpath('resources', 'data', 'testing')
+output_path = root.joinpath('assets', 'testing')
 
 UPLOAD_DIRECTORY = output_path
 print(UPLOAD_DIRECTORY)
