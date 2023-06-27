@@ -3,6 +3,7 @@ import cv2
 import dash
 import json
 import base64
+import visdcc
 import datetime
 import pathlib
 import pandas as pd
@@ -289,7 +290,7 @@ test_tables_style_header_conditional = [
         'color': 'whitesmoke',
     }
 ]
-test_tables_style_data_conditional = [
+test_tables_style_data_conditional   = [
     {
         'if': {
             # 'column_id': 'exp_wms',
@@ -345,7 +346,6 @@ columns = [
 datatable  = dt.DataTable(
     id='task-table',
     columns=columns,
-    # columns=[{'name': i, 'id': i, 'deletable': False} for i in sv.data_table_columns],
     hidden_columns=['_id', 'id', 'source', 'department', 'telephone', 'email', 'role'],
     row_selectable='single'   ,
     page_action='native'      ,
@@ -960,9 +960,7 @@ def highlight_selected_task(selected_row):
     Output('page-next'          , 'n_clicks'),
     Output('page-prev'          , 'n_clicks'),
     Output('filters-query'      , 'data'    ),
-    # Output('previous-dropdowns' , 'data'    ),
-
-    # Input ('previous-dropdowns' , 'data'    ),
+    #
     Input ('filters-query'      , 'data'    ),
     Input ('clicked-chart'      , 'data'    ),
     Input ('page-next'          , 'n_clicks'),
@@ -972,7 +970,6 @@ def highlight_selected_task(selected_row):
     Input ('switch-pane'        , 'n_clicks'),
 )
 @timing_decorator
-# def documents_portal(previous_dropdowns, filters_query, clicked_chart, b_next, b_prev, search_input, *args):
 def documents_portal(filters_query, clicked_chart, b_next, b_prev, search_input, *args):
     if ctx.triggered_id == 'clicked-chart':
         filter_dict = filters_query.copy()
@@ -1081,7 +1078,7 @@ def documents_portal(filters_query, clicked_chart, b_next, b_prev, search_input,
     Input ('switch-pane'        , 'n_clicks'     ),
     Input ('task-table'         , 'selected_rows'),
     State ('task-table'         , 'data'         ),
-) # issue and testplan layouts renders the update pane and test execution
+) # issue and testplan, issue, and bug_report layouts
 def document_master_portal(switch_pane, selected_row, rows):  #
     """
     her we manage the sorts of doctype update flow. main focus is given to test flow
@@ -1092,6 +1089,7 @@ def document_master_portal(switch_pane, selected_row, rows):  #
         document_detail_row, selected_id, owner_name, record_info,
         input_row, update_form_by_record_type, mtp_layout, t_plans
     """
+
     def create_md_note(header: str, note: str, oid: Any) -> dbc.Col:
         if note is None:
             return dbc.Col(html.Div([html.H6(header, style={'margin-bottom': '0px'}),]))
@@ -1163,7 +1161,7 @@ def document_master_portal(switch_pane, selected_row, rows):  #
             css=[{'selector': '.show-hide', 'rule': 'display: none'}]
         )
 
-    def testplan_table_maker(test_plans: list) -> dag.AgGrid:  # testplan-grid
+    def testplan_grid_maker(test_plans: list) -> dag.AgGrid:  # testplan-grid
         dff = pd.DataFrame(test_plans)
         dff.drop(['test_steps'], inplace=True, axis=1)
 
@@ -1450,7 +1448,23 @@ def document_master_portal(switch_pane, selected_row, rows):  #
                     dbc.Col(
                         dbc.Modal(
                             [
-                                dbc.Alert("דוח תקלה", color='info', class_name='fs-3 text-end'),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            html.Div(
+                                                [
+                                                    dbc.Button('Print PDF', id='print-click', color='primary'),
+                                                    visdcc.Run_js(id='javascript'),
+                                                ]
+                                            ),
+                                            class_name='col-1 mt-2 ms-2'
+                                        ),
+                                        dbc.Col(
+                                            dbc.Alert("דוח תקלה", color='info', class_name='fs-3 text-end'),
+                                            class_name='col-10 mx-0 px-0'
+                                        ),
+                                    ],
+                                ),
                                 dbc.ModalBody(
                                     html.Div(
                                         id='bug-report-md',
@@ -1497,7 +1511,7 @@ def document_master_portal(switch_pane, selected_row, rows):  #
                 }
             )
 
-        testplan = testplan_table_maker(test_plans=test_plans)
+        testplan = testplan_grid_maker(test_plans=test_plans)
         first_row = dbc.Row(
             [
                 dbc.Col(
@@ -1650,7 +1664,7 @@ def document_master_portal(switch_pane, selected_row, rows):  #
             user_object
         ]
         return detail_row, document_info, o_name
-    ####################################################################################################################
+    ##################################################################################################################
     update_form_empty   = html.Div()
     input_row           = selected_row
     t_plans             = None
@@ -2033,8 +2047,8 @@ def testrun_table_maker(selected_row, rows, _):
     return grid, t_steps.to_dict('records')
 
 @callback(
-    Output('moshe-id', 'data'     ),
-
+    Output('moshe-id', 'data'),
+    #
     Input ('testrun-grid'        , 'cellValueChanged'),
     Input ('bug-attributes-grid' , 'cellValueChanged'),
     Input ('testrun-selected-row', 'data'            )
@@ -2097,7 +2111,6 @@ def db_update_testrun_manager(_, bug_attributes_row, testrun_selected_row):
         db_update_testrun_row(record=testrun_selected_row, selector='attributes')
 
     return None
-
 
 @callback(
     Output("file-handler-modal"        , "is_open" ),
@@ -2406,27 +2419,35 @@ def display_purpose_modal(n1, n2):
 
 @callback(
     Output('display-bug-report'    , 'is_open'),
+    Output('javascript'            , 'run'    ),
 
     Input('report-bug-button'      , 'n_clicks'),
-    Input('close-bug-report-button', 'n_clicks')
+    Input('close-bug-report-button', 'n_clicks'),
+    Input('print-click'            , 'n_clicks')
 )
-def bug_report_modal(n1, n2):
+def bug_report_modal(n1, n2, n3):
     if not ctx.triggered_id:
         return dash.no_update
 
     if ctx.triggered_id == 'report-bug-button':
-        return True
+        return True, dash.no_update
 
     if ctx.triggered_id == 'close-bug-report-button':
-        return False
+        return False, dash.no_update
+
+    if ctx.triggered_id == 'print-click':
+        return dash.no_update, 'window.print()'
 
 ################################### ***END MTP Callbacks *** ##########################################################
+
 """
 ps = []
 [ps.append(p.get('תכלית')) for p in mtp_object.get('purpose')]
 purpose = '\n'.join(ps)
 """
 """
+    Output('javascript', 'run'     ),
+    Input ('click1'    , 'n_clicks')
 # @callback(
 #     Output('test-plans', 'style_data_conditional'       ),
 #     Input ('test-plans', 'derived_virtual_selected_rows'),
