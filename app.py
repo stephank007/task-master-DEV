@@ -206,4 +206,4 @@ except Exception as ex:
 
 print('\tAPP is about to begin....')
 if __name__ == '__main__':
-   app.run_server(debug=True)
+   app.run_server(port=8050)

@@ -1433,7 +1433,7 @@ def document_master_portal(switch_pane, selected_row, rows):  #
                     [
                         dbc.Col(
                             html.Div(id='bug-report-grid-div'),
-                            class_name = 'col-6',
+                            class_name = 'col-9',
                         ),
                         dbc.Col(
                             dbc.Button(
@@ -1443,7 +1443,7 @@ def document_master_portal(switch_pane, selected_row, rows):  #
                                 color='danger',
                                 class_name='ml-auto'
                             ),
-                            className='d-grid, col-3 fs-3'
+                            className='d-grid, col-2 fs-3'
                         )
                     ]
                 ),
@@ -1832,7 +1832,7 @@ def parse_chart_event(pie_data, bar_data, pdu_data):
     State('testplan-grid', 'rowData'         ),
     Input('testplan-grid', 'cellValueChanged'),
 )
-def testrun_table_creation(selected_row, rows, _):
+def testrun_table_maker(selected_row, rows, _):
     # disabled = True if ctx.triggered_id == 'testrun-button' else False
     if selected_row is None:
         return dash.no_update
@@ -2039,7 +2039,6 @@ def testrun_table_creation(selected_row, rows, _):
     Input ('testrun-grid'        , 'cellValueChanged'),
     Input ('bug-attributes-grid' , 'cellValueChanged'),
     Input ('testrun-selected-row', 'data'            )
-
 )
 # def db_update_testrun_manager(_, row, data, bug_attributes_row, testrun_selected_row):
 def db_update_testrun_manager(_, bug_attributes_row, testrun_selected_row):
@@ -2175,6 +2174,34 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
             {
                 "headerName": "הערות נוספות",
                 "field": "a_comments",
+                'width': 280,
+                "editable": True,
+                "cellEditorPopup": True,
+                "cellEditor": "agLargeTextCellEditor",
+                'cellStyle': {
+                    'textAlign': 'right',
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            },
+            {
+                "headerName": "תיעוד BP",
+                "field": "blue_print",
+                'width': 280,
+                "editable": True,
+                "cellEditorPopup": True,
+                "cellEditor": "agLargeTextCellEditor",
+                'cellStyle': {
+                    'textAlign': 'right',
+                    'direction': 'rtl',
+                    'white-space': 'normal',
+                    'word-break': 'break-word'
+                }
+            },
+            {
+                "headerName": "תיעוד CDR",
+                "field": "m4n_cdr",
                 'width': 280,
                 "editable": True,
                 "cellEditorPopup": True,
