@@ -741,7 +741,7 @@ def get_selected_testplan_data(test_plan_oid: ObjectId):
     return task_db.aggregate_query(collection='tasks', query=query)
 
 def save_file(name, content):
-    """Decode and store a file uploaded with Plotly Dash."""
+    """Decode and store a file uploaded with Plotly Dash. Resize PNG File"""
     data = content.encode("utf8").split(b";base64,")[1]
 
     file_name = name.as_posix()
@@ -754,7 +754,7 @@ def save_file(name, content):
     height, width = image.shape[:2]
     ratio = height / width
 
-    reduced = 450
+    reduced = 650
     cv2_image = cv2.imread(file_name)
     resized_image = cv2.resize(cv2_image, (reduced, int(round(reduced * ratio))))
     cv2.imwrite(file_name, resized_image)
@@ -788,7 +788,6 @@ def encode_image(image_path):
     with open(image_path, 'rb') as file:
         encoded_string = base64.b64encode(file.read()).decode('utf-8')
     return encoded_string
-
 
 ######################################################################################################################
 def layout():
@@ -2040,7 +2039,6 @@ def testrun_table_maker(selected_row, rows, _):
     Input ('bug-attributes-grid' , 'cellValueChanged'),
     Input ('testrun-selected-row', 'data'            )
 )
-# def db_update_testrun_manager(_, row, data, bug_attributes_row, testrun_selected_row):
 def db_update_testrun_manager(_, bug_attributes_row, testrun_selected_row):
     if _ is None and bug_attributes_row is None:
         return dash.no_update
@@ -2116,7 +2114,7 @@ def db_update_testrun_manager(_, bug_attributes_row, testrun_selected_row):
     Input ('close-file-handler-modal', 'n_clicks'        ),
     Input ('switch-bug-close-button' , 'n_clicks'        ),
 
-)  # handles testrun button events: bug report and file_load
+)  # handles testrun button events: bug-report,  and file_load
 def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1):
 
     def file_handler_layout():
@@ -2239,13 +2237,14 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
         files = uploaded_files(file_directory=path)
         png_file = None
         root_dir = f'/assets/testing/{oid}/bug/'
+        md_objects = []
         for f in files:
             file_name = path.joinpath(f).as_posix()
             if file_name.endswith('png'):
                 png_file = file_name
-        png_file = root_dir + pathlib.Path(png_file).name
-        print(png_file)
-        return f'![moshe picture]({png_file} "hello mr. man")'
+                png_file = root_dir + pathlib.Path(png_file).name
+                md_objects.append(f'![moshe picture]({png_file} "hello mr. man")')
+        return md_objects
 
     def bug_report_md_maker(record: dict) -> dcc.Markdown:
         p = record.get('priority')
@@ -2255,8 +2254,7 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
         oid     = step_row_data.get('step_oid')
         bug_dir = sv.UPLOAD_DIRECTORY.joinpath(oid, 'bug')
 
-        image_md = get_image_md(path=bug_dir, oid=oid)
-        print(image_md)
+        images_md = get_image_md(path=bug_dir, oid=oid)
 
         title = f' ## דיווח תקלה: {record.get("comments")}'
         markdown = f"""
@@ -2264,8 +2262,9 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
         - עדיפות: {p}  
         - חמרה  : {s}  
         - הערה נוספת : {c}  
-        {image_md}
         """
+        for m in images_md:
+            markdown += m
         return dcc.Markdown(markdown)
 
     if selected_row is None:
