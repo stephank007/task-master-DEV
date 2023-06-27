@@ -743,9 +743,21 @@ def get_selected_testplan_data(test_plan_oid: ObjectId):
 def save_file(name, content):
     """Decode and store a file uploaded with Plotly Dash."""
     data = content.encode("utf8").split(b";base64,")[1]
-    # name = f'{datetime.datetime.now()}-{name}'
+
+    file_name = name.as_posix()
     with open(name, "wb") as fp:
-        fp.write(base64.decodebytes(data))
+       fp.write(base64.decodebytes(data))
+    try:
+        image = cv2.imread(file_name, cv2.IMREAD_UNCHANGED)
+    except Exception as ex:
+        print(ex)
+    height, width = image.shape[:2]
+    ratio = height / width
+
+    reduced = 450
+    cv2_image = cv2.imread(file_name)
+    resized_image = cv2.resize(cv2_image, (reduced, int(round(reduced * ratio))))
+    cv2.imwrite(file_name, resized_image)
 
 def uploaded_files(file_directory):
     """List the files in the upload directory."""
@@ -2196,56 +2208,38 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
         )
         return html.Div(bug_report_grid)
 
+    def get_image_md(path: pathlib.Path, oid: str) -> str:
+        files = uploaded_files(file_directory=path)
+        png_file = None
+        root_dir = f'/assets/testing/{oid}/bug/'
+        for f in files:
+            file_name = path.joinpath(f).as_posix()
+            if file_name.endswith('png'):
+                png_file = file_name
+        png_file = root_dir + pathlib.Path(png_file).name
+        print(png_file)
+        return f'![moshe picture]({png_file} "hello mr. man")'
+
     def bug_report_md_maker(record: dict) -> dcc.Markdown:
         p = record.get('priority')
         s = record.get('severity')
         c = record.get('a_comments')
 
-        oid = step_row_data.get('step_oid')
-        parent  = sv.UPLOAD_DIRECTORY.joinpath(oid)
-        bug_dir = sv.UPLOAD_DIRECTORY.joinpath(parent, 'bug')
-        tmp_png = './assets/xyz.png'
+        oid     = step_row_data.get('step_oid')
+        bug_dir = sv.UPLOAD_DIRECTORY.joinpath(oid, 'bug')
 
+        image_md = get_image_md(path=bug_dir, oid=oid)
+        print(image_md)
 
-        files = uploaded_files(file_directory=bug_dir)
-        for f in files:
-            file_name = bug_dir.joinpath(f).as_posix()
-            if file_name.endswith('png'):
-                with open(file_name, 'rb') as image_file:
-                    image_file = image_file.read()
-                try:
-                    image = cv2.imread(file_name, cv2.IMREAD_UNCHANGED)
-                except Exception as ex:
-                    print(ex)
-                height, width = image.shape[:2]
-                ratio = height / width
-
-                reduced = 250
-                cv2_image = cv2.imread(file_name)
-                resized_image = cv2.resize(cv2_image, (reduced, int(round(reduced * ratio))))
-                cv2.imwrite(tmp_png, resized_image)
-
-                encoded_image = encode_image(tmp_png)
-                # encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
-
-        bug_dir = f'/assets/testing/{oid}/bug/'
-        file_name = bug_dir + '1687380023-pngwing.com.png'
-        moshe = f'![moshe picture]({file_name} "hello mr. man")'
-        moshe = f'![moshe picture](/assets/xyz.png "hello mr. man")'
-
-        image_src  = f'data:image/png;base64,{encoded_image}',
-        image_html = html.Img(src=image_src[0], style={'max-width': '300px'})
-        # image_html = f'<img src={image_src[0]}>'
-
-        title = f'## דיווח תקלה:{record.get("comments")}'
+        title = f' ## דיווח תקלה: {record.get("comments")}'
         markdown = f"""
         {title}\n\n
         - עדיפות: {p}  
         - חמרה  : {s}  
         - הערה נוספת : {c}  
+        {image_md}
         """
-        return html.Div('moshe')
-        # return dcc.Markdown(markdown)
+        return dcc.Markdown(markdown)
 
     if selected_row is None:
         return dash.no_update
@@ -2271,8 +2265,8 @@ def step_row_event_manager(selected_row, step_row, testrun_data, close_click, n1
                     return False, dash.no_update, dash.no_update, dash.no_update, div_hide, dash.no_update
                 else:
                     bug_div = bug_report_grid_maker(record=step_row_data)
-                    # md      = bug_report_md_maker(record=step_row_data)
-                    return dash.no_update, dash.no_update, step_row_data, bug_div, div_show, dash.no_update
+                    md      = bug_report_md_maker(record=step_row_data)
+                    return dash.no_update, dash.no_update, step_row_data, bug_div, div_show, md
             case _:
                 action = step_row.get('colId')
                 step_row_data.update({'action': action})
