@@ -374,7 +374,7 @@ class MongoManager:
         ##########
         ##########
         ##########
-        search_query = {'$text': {'$search': 'T_01'}}
+        # search_query = {'$text': {'$search': 'T_01'}}
         ##########
         ##########
         ##########

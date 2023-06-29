@@ -800,7 +800,6 @@ def layout():
                 dcc.Store(id='clicked-chart'     ),
                 # dcc.Store(id='previous-dropdowns'),
                 dcc.Store(id='diff-store'        ),
-                dcc.Store(id='mtp-test-plans'    ),
                 dcc.Store(id='testrun-grid-data' ),
                 dcc.Store(id='moshe-id'          ),
                 html.Br(),
@@ -970,7 +969,7 @@ def highlight_selected_task(selected_row):
     Input ('switch-pane'        , 'n_clicks'),
 )
 @timing_decorator
-def documents_portal(filters_query, clicked_chart, b_next, b_prev, search_input, *args):
+def documents_data_manager(filters_query, clicked_chart, b_next, b_prev, search_input, *args):
     if ctx.triggered_id == 'clicked-chart':
         filter_dict = filters_query.copy()
         filter_dict.update({'status': None})
@@ -1067,18 +1066,17 @@ def documents_portal(filters_query, clicked_chart, b_next, b_prev, search_input,
 
 @callback(
     Output('document-detail-row', 'children'     ),
-    Output('record-id'          , 'data'         ),
+    Output('record-id'          , 'data'         ),  # selected row
     Output('owner-name'         , 'data'         ),
-    Output('record-info'        , 'children'     ),
+    Output('record-info'        , 'children'     ),  # record info
     Output('task-table'         , 'selected_rows'),
     Output('update-form'        , 'children'     ),
     Output('test-detail-pane'   , 'children'     ),
-    Output('mtp-test-plans'     , 'data'         ),
 
     Input ('switch-pane'        , 'n_clicks'     ),
     Input ('task-table'         , 'selected_rows'),
     State ('task-table'         , 'data'         ),
-) # issue and testplan, issue, and bug_report layouts
+) # issue, testplan  and bug_report layouts
 def document_master_portal(switch_pane, selected_row, rows):  #
     """
     her we manage the sorts of doctype update flow. main focus is given to test flow
@@ -1708,8 +1706,8 @@ def document_master_portal(switch_pane, selected_row, rows):  #
                 )
         update_form_by_record_type = update_form(record_type=doctype)
 
-        return document_detail_row, selected_id, owner_name, record_info, input_row, update_form_by_record_type, mtp_layout, t_plans
-    return None, '', '', 'no info', [], update_form_empty, update_form_empty, t_plans
+        return document_detail_row, selected_id, owner_name, record_info, input_row, update_form_by_record_type, mtp_layout
+    return None, '', '', 'no info', [], update_form_empty, update_form_empty
 
 @callback(
     Output('owner-notes'     , 'data'         ),
